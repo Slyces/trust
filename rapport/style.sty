@@ -1,0 +1,107 @@
+\ProvidesPackage{style}[2018/07/14 My Style file .sty]
+
+% ------------------------------------------------------------
+% Police
+
+% ------------------------------------------------------------
+% Dépendences
+\usepackage{titlesec} % formatage des titres
+\usepackage{xcolor} % gestion des couleurs
+\usepackage[most]{tcolorbox} % boites et autres cadres
+\usepackage{amsmath} % alignement des équations (entre autres)
+\usepackage{amssymb} % symboles (\geqslant, entre autres)
+\usepackage{minted} % mise en forme de code
+\usepackage{appendix} % pour ajouter un appendice en fin
+\usepackage{tikz} % graphes
+
+% ------------------------------------------------------------
+% Environnements
+
+% ------------------------------------------------------------
+% Abréviations
+
+% ------------------------------------------------------------
+% Commandes
+
+% Titre et page de garde
+\newcommand{\tcol}[1]{\textcolor{red}{#1}}
+
+% Questions 
+\newcounter{question}[subsection]
+\newcommand{\question}[1]{\medskip\noindent\refstepcounter{question} \textbf{\thequestion]~}\textit{#1}\smallskip}
+
+\newcounter{subquestion}[question]
+\newcommand{\subquestion}[1]{\smallskip\refstepcounter{subquestion}\textbf{\alph{subquestion})~}\textit{#1}\smallskip}
+
+% ------------------------------------------------------------
+% Couleurs
+\definecolor{airforceblue}{rgb}{0.36, 0.54, 0.66}
+\definecolor{red}{rgb}{0.8, 0.0, 0.0}
+\definecolor{blue}{rgb}{0.36, 0.54, 0.66}
+\definecolor{green}{rgb}{0.0, 0.42, 0.24}
+\definecolor{grey}{RGB}{200, 200, 200}
+\definecolor{darkgrey}{RGB}{75, 75, 75}
+
+% ------------------------------------------------------------
+% Code [minted]
+% \usemintedstyle{bw}
+
+\newenvironment{code}{\vspace{8pt}\begin{codebox}}{\end{codebox}\vspace{8pt}}
+\newenvironment{doublecode}[1]{
+    \vspace{8pt}
+    \begin{center}
+        \textbf{\texttt{#1}}
+    \end{center}
+    \vspace{-6pt}
+    \begin{doublecodebox}
+}{
+    \end{doublecodebox}
+    \vspace{8pt}
+}
+
+% ------------------------------------------------------------
+% Cadres [tcolorbox]
+\newtcolorbox{codebox}{
+    colback=grey!2!white,
+    colframe=black!25!white,
+    boxrule=1px,
+    fuzzy halo=2pt with grey!25!white,
+    bottom=5pt, top=5pt,
+    grow to left by = -0.5cm,
+    grow to right by =-0.5cm,
+    breakable
+}
+
+\newtcolorbox{doublecodebox}[1][]{
+    sidebyside,
+    title=#1,
+    colback=grey!2!white,
+    colframe=black!25!white,
+    boxrule=1px,
+    fuzzy halo=2pt with grey!25!white,
+    bottom=5pt, top=5pt,
+    grow to left by = -0.5cm,
+    grow to right by =-0.5cm
+}
+
+% ------------------------------------------------------------
+% Mise en forme des titres
+
+% Souligner les titres de sections
+\titleformat{\section}[block]%
+    {\Large\bfseries}{}{0pt}%
+    {\thesection}[\vspace{2pt}\titlerule]
+
+\titleformat*{\subsection}{\Large\bfseries}
+\titleformat*{\subsubsection}{\normalfont\bfseries\itshape}
+% -------------------------------------------------------------
+% Numérotation des titres
+
+\renewcommand{\thesection}%
+    {\Roman{section}%
+        \ifnum\value{section}=0%
+        \else~--~%
+        \fi%
+    }
+\renewcommand{\thesubsection}{}%{\arabic{subsection}.}
+\renewcommand{\thesubsubsection}{}%{\Roman{section}--\arabic{subsection}.\arabic{subsubsection}.}
