@@ -8,27 +8,51 @@
 \usepackage{titlesec} % formatage des titres
 \usepackage{xcolor} % gestion des couleurs
 \usepackage[most]{tcolorbox} % boites et autres cadres
-\usepackage{amsmath} % alignement des équations (entre autres)
+\usepackage{mathtools} % alignement des équations (entre autres)
 \usepackage{amssymb} % symboles (\geqslant, entre autres)
 \usepackage{minted} % mise en forme de code
 \usepackage{appendix} % pour ajouter un appendice en fin
 \usepackage{tikz} % graphes
+\usepackage{pgfplots} % plots de fonctions
+\pgfplotsset{compat=1.15}
 
 % ------------------------------------------------------------
 % Environnements
+\newcounter{hypothesis}
+\newenvironment{hypothese}[1]{
+    \refstepcounter{hypothesis}
+    \noindent$\mathcal{H}\thehypothesis$ -- \textsc{#1}\vspace{4pt}
+}{
+    \vspace{10pt}
+}
+
+\newenvironment{pseudocode}[1]{
+    \begin{code}
+        \begin{center} \textsc{#1} \end{center} \hline
+        \begin{minted}{latex}
+}{
+        \end{minted}
+    \end{code}
+}
 
 % ------------------------------------------------------------
 % Abréviations
+\newcommand\UG{\textbf{\textsc{ug}}}
+
 
 % ------------------------------------------------------------
 % Commandes
+\let\oldforall\forall
+\renewcommand{\forall}{\oldforall~}
+
+\newcommand{\smalltitle}[1]{\noindent\textbf{{\large #1}}\vspace{8pt}}
 
 % Titre et page de garde
 \newcommand{\tcol}[1]{\textcolor{red}{#1}}
 
 % Questions 
 \newcounter{question}[subsection]
-\newcommand{\question}[1]{\medskip\noindent\refstepcounter{question} \textbf{\thequestion]~}\textit{#1}\smallskip}
+\newcommand{\question}[1]{\medskip\noindent\refstepcounter{question} \textbf{\arabic{section}.\thequestion]~}\textit{#1}\smallskip}
 
 \newcounter{subquestion}[question]
 \newcommand{\subquestion}[1]{\smallskip\refstepcounter{subquestion}\textbf{\alph{subquestion})~}\textit{#1}\smallskip}
