@@ -1,9 +1,10 @@
+%! TEX program = lualatex
 \documentclass{article}
 % -------------------------------------------------------------
-\usepackage[utf8]{inputenc}
-% \usepackage{fontspec}
-\usepackage[T1]{fontenc}
-\usepackage[francais]{babel}
+%\usepackage[utf8]{inputenc}
+ \usepackage{fontspec}
+%\usepackage[T1]{fontenc}
+%\usepackage[francais]{babel}
 \usepackage{style}
 
 % ------------------------------------------------------------
@@ -34,26 +35,123 @@
 % ================================================================================ %
 \section{Pseudocode}
 
-\begin{pseudocode}{Initialisation des consumer}
-pour chaque consumer a
-|   initialiser une liste vide de taille H
-|   choisir une position au hasard
-|   
+\begin{pseudocode}{Initialisation : Consumer}
+\begin{minted}{latex}
+pour chaque consumer a faire
+    initialiser une liste vide de taille H
+    initialiser r_o
+    choisir un niveau d'activité alpha ~ U([0.25, 1.00])
+    choisir une position au hasard
 fin pour
+\end{minted}
 \end{pseudocode}
 
+\begin{pseudocode}{Initialisation : Producer}
+\begin{minted}{latex}
+pour chaque provider b faire
+    déterminer le type de b parmi {good, ok, bad, intermitent}
+    initialiser r_o
+    si b n'est pas intermitent alors
+        initialiser σp
+        choisir au hasard μp dans l'intervale correspondant
+    fin si
+fin pour
+\end{minted}
+\end{pseudocode}
+
+\begin{pseudocode}{Déroulement d'un round}
+\begin{minted}{latex}
+pour chaque consumer a faire
+    déterminer si a nécessite un service
+    si vrai alors
+        incrémenter i le compteur d'intéractions
+        b <-- choix d'un provider par a
+        ug <-- b génère au hasard une utilité entre -10 et 10
+        v <-- déterminer la valeur de l'intéraction
+        créer un rating r = (a, b, c, i, v)
+    fin si
+fin pour
+
+# simulation d'instantanéité
+pour chaque consumer a faire
+    si r existe alors
+        enregistrer le rating r dans la liste de a
+        envoyer le rating r à b
+        b enregistre r si v est meilleur que son moins bon référencement
+    fin si
+fin pour
+\end{minted}
+\end{pseudocode}
+
+\begin{pseudocode}{Choix d'un provider}
+\begin{minted}{latex}
+P <-- récupérer les providers disponibles
+pour chaque b dans P faire
+    v <-- déterminer la valeur de confiance de b
+    si v est défini alors
+        insérer b dans la liste NoTrust sinon
+        insérer b dans la liste Trust
+    fin si
+fin pour
+trier la liste Trust par valeur de confiance
+choisir stratégie (exploration ou exploitation)
+si exploration alors
+    p <-- choisir un provider au hasard dans NoTrust
+sinon
+    p <-- provider avec la plus grande valeur de confiance
+fin si
+retourner p
+\end{minted}
+\end{pseudocode}
+
+\begin{pseudocode}{Déterminer la valeur de confiance de la composante K}
+\begin{minted}{latex}
+Entrée: RK ensemble de ratings pour le calcul de la composante K
+
+Σω <-- 0
+Σω_vi <-- 0
+pour chaque ri dans RK faire
+    ω <-- calculer ω_K(ri)
+    Σω <-- Σω + ω
+    Σω_vi <-- Σω + ω * vi
+fin pour
+T_K <-- Σω_vi / Σω
+ρ_RK <-- 1 - exp(-γK * Σω)
+Σω_vi_T <-- 0
+pour chaque ri dans RK faire
+    Σω_vi_T <-- Σω_vi_T + ω_K(ri) * abs(vi - T_K)
+fin pour
+ρ_DK = 1 - 0.5 * (Σω_vi_T / Σω)
+ρ_K = ρ_RK * ρ_DK
+
+retourner (ρ_K, T_K)
+\end{minted}
+\end{pseudocode}
+
+\begin{pseudocode}{Déterminer la valeur de confiance générale}
+\begin{minted}{latex}
+# Déterminer RI l'ensemble des ratings d'Intéraction
+\end{minted}
+\end{pseudocode}
+
+% Idée d'optimisation
+%    Quand l'action choisir est explorer, arrêter le calcul
+%    de confiance dès qu'on sait que la valeur est définie
+
+
 \section{Etude préliminaire}
+\label{sec:etude-preliminaire}
 
 \question{Résumez en quelque ligne la problématique des auteurs, et les choix de modélisation qu'ils proposent.}
 
 Les auteurs proposent un modèle de confiance permettant à un agent de juger de la qualité des services d'autres agents. Plus précisément, ce modèle doit être décentralisé, robuste aux mensonges.
 
-\question{Pourquoi à votre avis le modèle intègre-t-il 4 composantes pour évaluer la confiance ?}
+\question{Pourquoi ? Test.}
 
 
 % ================================================================================ %
 \section{Etudes progressive du modèle FIRE}
-\label{sec:etude-preliminaire}
+\label{sec:etude-progressive}
 
 \smalltitle{Hypothèses d'implémentation}
 

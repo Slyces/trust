@@ -5,12 +5,12 @@
 
 % ------------------------------------------------------------
 % Dépendences
+\usepackage{minted} % mise en forme de code
 \usepackage{titlesec} % formatage des titres
 \usepackage{xcolor} % gestion des couleurs
 \usepackage[most]{tcolorbox} % boites et autres cadres
 \usepackage{mathtools} % alignement des équations (entre autres)
 \usepackage{amssymb} % symboles (\geqslant, entre autres)
-\usepackage{minted} % mise en forme de code
 \usepackage{appendix} % pour ajouter un appendice en fin
 \usepackage{tikz} % graphes
 \usepackage{pgfplots} % plots de fonctions
@@ -28,10 +28,8 @@
 
 \newenvironment{pseudocode}[1]{
     \begin{code}
-        \begin{center} \textsc{#1} \end{center} \hline
-        \begin{minted}{latex}
+        \begin{center} \textsc{#1} \end{center} % \hline
 }{
-        \end{minted}
     \end{code}
 }
 
