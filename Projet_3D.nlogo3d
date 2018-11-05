@@ -2,7 +2,7 @@ breed [providers provider]
 breed [consumers consumer]
 
 consumers-own [
-  ratingData   ;liste des transactions que le consumer a effectué
+  ratingData   ;liste des transactions que le consumer a effectué max 10
   utility
 ]
 providers-own [mean_provider type_provider]
@@ -16,6 +16,8 @@ globals [
   service
   utility-IT
   utility-RANDOM
+
+  range_max
 ]
 
 
@@ -24,9 +26,28 @@ to setup
   clear-all
   reset-ticks
   set service "quality"
+  set range_max round (range_provider + (range_provider * coeff_radius_max))
+
+
+  ;--------------------------------------------------
+  ; question : sur la sphere
+  ;---------------------------------------------------
 
   create-consumers nbConsumer [
-    setxyz random-xcor random-ycor random-zcor
+    tilt-up asin (1.0 - random-float 2)
+    jump range_circle
+  ]
+
+    create-providers nbProvider [
+    tilt-up asin (1.0 - random-float 2)
+    jump range_circle
+  ]
+
+  ask consumers [
+    ;setxyz random-xcor random-ycor random-zcor
+    ;while [ distancexyz 0 0 0 >= range_circle][
+     ; setxyz random-xcor random-ycor random-zcor
+    ;]
     set color red
     set ratingData []
   ]
@@ -35,31 +56,54 @@ to setup
     set listProvider []
   ]
 
-  create-providers nbProvider[
-    setxyz random-xcor random-ycor random-zcor
-    set color blue
 
-    ;donne la moyenne du provider
-    giveMean
+  ask providers [
+    set color blue
+    set type_provider 0
+
     ;donne l'id du provider au patch
-    ask patches in-radius range_provider [
+    ask patches in-radius round range_max [
       set listProvider lput [who] of myself listProvider
     ]
-
   ]
+
+  ;instancie les types de providers
+  ask n-of round (nbProvider / 10) providers with [type_provider = 0][
+    set type_provider "good"
+  ]
+
+  ask n-of round (nbProvider / 1.82) providers with [type_provider = 0][
+    set type_provider "ordinary"
+  ]
+
+  ask n-of round (nbProvider / 4) providers with [type_provider = 0][
+    set type_provider "intermittent"
+  ]
+  ask n-of round (nbProvider / 10) providers[
+    set type_provider "bad"
+  ]
+
+  ;donne la moyenne du provider
+  ask providers [
+    giveMean
+  ]
+
 
   set idTransaction (nbProvider + nbConsumer + 1)
 end
 
 to go
+
   ;pour random
   ask consumers-on patches with [length listProvider != 0][
     let idProvider [one-of listProvider] of patch-here
 
-    ;random selection
-    makeTransaction idProvider
-    ;supprime la transaction
-    set ratingData remove-item (length ratingData - 1) ratingData
+    if random-float 1 < %_transaction [
+      ;random selection
+      makeTransaction idProvider
+      ;supprime la transaction
+      set ratingData remove-item (length ratingData - 1) ratingData
+    ]
   ]
 
   set utility-RANDOM mean [utility] of consumers-on patches with [length listProvider != 0]
@@ -72,9 +116,13 @@ to go
     if length [listProvider] of patch-here != 1 [
       set idProvider selectProvider
     ]
-    makeTransaction idProvider
+    if random-float 1 < %_transaction [
+      makeTransaction idProvider
+    ]
   ]
   set utility-IT mean [utility] of consumers-on patches with [length listProvider != 0]
+
+
 
   ;tue des agents
   ask n-of round (nbProvider / 50) consumers [
@@ -83,7 +131,9 @@ to go
 
   ;créé des agents
   create-consumers round (nbProvider / 50) [
-    setxyz random-xcor random-ycor random-zcor
+    tilt-up asin (1.0 - random-float 2)
+    jump range_circle
+
     set color red
     set ratingData []
   ]
@@ -91,23 +141,34 @@ to go
 end
 
 
-
-
-
 ;selectionne le provider
 to-report selectProvider
-  let trustValues []
+  let trustValues-IT []
+  let trustValues-RT []
 
+
+  ;pour IT
   ;pour chaque provider du patch
   foreach [listProvider] of patch-here [
     idProvider ->
-    let list_transaction getListTransaction idProvider
-    set trustValues lput (list (trustFunction list_transaction) idProvider) trustValues
+    let list_transaction-IT getListTransaction-IT idProvider
+    set trustValues-IT lput (list (trustFunction list_transaction-IT) idProvider) trustValues-IT
+  ]
+
+  ;----------------------------------
+  ;trustfonction avec RT ?
+  ;----------------------------------
+  ;pour RT
+  ;pour chaque provider du patch
+  foreach [listProvider] of patch-here [
+    idProvider ->
+    let list_transaction-RT getListTransaction-RT idProvider
+    set trustValues-RT lput (list (trustFunction list_transaction-RT) idProvider) trustValues-RT
   ]
 
   ;prend le plus haut taux de trustValues et report l'id du provider
-  set trustValues sort-by [ [a b] -> item 0 a >= item 0 b] trustValues
-  let selected item 1 item 0 trustValues
+  set trustValues-IT sort-by [ [a b] -> item 0 a >= item 0 b] trustValues-IT
+  let selected item 1 item 0 trustValues-IT
   report selected
 
 end
@@ -146,13 +207,6 @@ to giveMean
   let pl_bad -5
   let pl_worst -10
 
-  ;---------------------------------------------
-  ;donne aléatoirement le type, a faire autrement
-  ;---------------------------------------------
-
-  let listType ["good" "ordinary" "bad" "intermittent"]
-  set type_provider one-of listType
-
   ifelse type_provider = "good" [
     set mean_provider mean (list pl_perfect pl_good)
   ][
@@ -167,7 +221,21 @@ to giveMean
 end
 
 
-to-report getListTransaction [id_provider]
+to-report getListTransaction-IT [id_provider]
+  let listTransaction []
+  ;pour chaque transaction de l'agent
+  foreach ratingData [
+    transaction ->
+    ;si le provider est le même que celui actuellement
+    if item 1 transaction = id_provider and item 2 transaction = service[
+      ;on ajoute la transaction dans la liste
+      set listTransaction lput transaction listTransaction
+    ]
+  ]
+  report listTransaction
+end
+
+to-report getListTransaction-RT [id_provider]
   let listTransaction []
   ;pour chaque transaction de l'agent
   foreach ratingData [
@@ -194,6 +262,9 @@ to makeTransaction [id_provider]
 
   ;ajoute la transaction au consumer
   set ratingData lput transaction ratingData
+  if length ratingData > 10 [
+    set ratingData but-first ratingData
+  ]
 end
 
 to giveUtility [id_provider]
@@ -207,9 +278,7 @@ to giveUtility [id_provider]
     set mean_P mean_provider
     set type_P type_provider
   ]
-  ;--------------------------------------------------------
-  ; voir comment faire la fonction linéaire pour la distance
-  ;---------------------------------------------------------
+
 
   ifelse type_P = "good" [
     set utility random-normal mean_P 1.0
@@ -223,15 +292,33 @@ to giveUtility [id_provider]
         ;random entre -5 et 5
         set utility (random-float 10) - 5
   ]]]
+
+  ;dégradation linéaire de la distance
+  let coeff (- 10 - utility) / (range_max - range_provider)
+
+  if distance_P > range_provider [
+    set utility utility + (coeff * (distance_P - range_provider))
+  ]
+  if distance_P = range_max [
+    set utility -10
+  ]
+
 end
 
 
+
+;nombre d'agent constant
+;on se déplace sur une sphere
+;proportion des catégories des provider page 139 on peut tirer sur une loi normale
+;est ce qu'on doit faire mourir et naitre des providers ?
+;peut être faire utilité une fois pour chaque provider (selon prof)
+;distance a modifier
 @#$#@#$#@
 GRAPHICS-WINDOW
 0
 0
-439
-460
+541
+542
 -1
 -1
 13.0
@@ -244,10 +331,10 @@ GRAPHICS-WINDOW
 1
 1
 1
--16
-16
--16
-16
+-20
+20
+-20
+20
 -16
 16
 1
@@ -314,7 +401,7 @@ nbProvider
 nbProvider
 0
 100
-50.0
+45.0
 1
 1
 NIL
@@ -329,7 +416,7 @@ range_provider
 range_provider
 0
 20
-8.0
+10.0
 1
 1
 NIL
@@ -353,6 +440,52 @@ false
 PENS
 "default" 1.0 0 -2674135 true "" "plot utility-IT"
 "pen-1" 1.0 0 -13345367 true "" "plot utility-RANDOM"
+"pen-2" 1.0 0 -7500403 true "" "plot 0"
+
+SLIDER
+19
+351
+191
+384
+range_circle
+range_circle
+1
+50
+15.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+248
+348
+423
+381
+coeff_radius_max
+coeff_radius_max
+0
+1
+0.8
+0.1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+250
+299
+422
+332
+%_transaction
+%_transaction
+0
+1
+1.0
+0.05
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -696,7 +829,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 3D 6.0.2
+NetLogo 3D 6.0.4
 @#$#@#$#@
 need-to-manually-make-preview-for-this-model
 @#$#@#$#@
