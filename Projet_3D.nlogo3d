@@ -1,3 +1,26 @@
+; Liste des choses à faire
+;
+; Fonctions utilitaires
+;   - calcul de la distance (euclidienne)
+;   -
+;
+; Constantes
+; | N       | nombre de rounds           | 50           |
+; | H       | history size               | 10           |
+; | λ       | recency scaling factor     | - 5 / ln(.5) |
+; | η_BF    | branching factor           | 2            |
+; | η_RL    | referral max length        | 5            |
+; | α_space | espace de l'activity level | [.25, 1.0]   |
+; |         |                            |              |
+; | N       | #Providers                 | 100          |
+; | Npg     | - Good                     | 10           |
+; | Npo     | - Ordinary                 | 40           |
+; | Npb     | - Bad                      | 5            |
+; | Npi     | - Intermitent              | 45           |
+; | Nc      | #Consumer                  | 500          |
+
+
+
 breed [providers provider]
 breed [consumers consumer]
 
