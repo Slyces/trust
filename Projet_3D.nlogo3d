@@ -20,18 +20,23 @@
 ; | Nc      | #Consumer                  | 500          |
 
 
+;nombre d'agent constant
+;proportion des catégories des provider page 139 on peut tirer sur une loi normale
+;est ce qu'on doit faire mourir et naitre des providers ?
 
 breed [providers provider]
 breed [consumers consumer]
 
 consumers-own [
+  listProvider
   ratingData   ;liste des transactions que le consumer a effectué max 10
   utility
 ]
-providers-own [mean_provider type_provider]
-patches-own [
-  listProvider   ;liste des providers sur le patch
+providers-own [
+  mean_provider
+  type_provider
 ]
+
 
 
 globals [
@@ -51,11 +56,6 @@ to setup
   set service "quality"
   set range_max round (range_provider + (range_provider * coeff_radius_max))
 
-
-  ;--------------------------------------------------
-  ; question : sur la sphere
-  ;---------------------------------------------------
-
   create-consumers nbConsumer [
     tilt-up asin (1.0 - random-float 2)
     jump range_circle
@@ -66,29 +66,23 @@ to setup
     jump range_circle
   ]
 
-  ask consumers [
-    ;setxyz random-xcor random-ycor random-zcor
-    ;while [ distancexyz 0 0 0 >= range_circle][
-     ; setxyz random-xcor random-ycor random-zcor
-    ;]
+
+    ask consumers [
     set color red
     set ratingData []
-  ]
-
-  ask patches [
     set listProvider []
   ]
-
 
   ask providers [
     set color blue
     set type_provider 0
 
-    ;donne l'id du provider au patch
-    ask patches in-radius round range_max [
+    ;donne l'id du provider aux consumers
+    ask consumers with [distance myself <= range_max] [
       set listProvider lput [who] of myself listProvider
     ]
   ]
+
 
   ;instancie les types de providers
   ask n-of round (nbProvider / 10) providers with [type_provider = 0][
@@ -118,8 +112,8 @@ end
 to go
 
   ;pour random
-  ask consumers-on patches with [length listProvider != 0][
-    let idProvider [one-of listProvider] of patch-here
+  ask consumers with [length listProvider != 0][
+    let idProvider one-of listProvider
 
     if random-float 1 < %_transaction [
       ;random selection
@@ -129,21 +123,21 @@ to go
     ]
   ]
 
-  set utility-RANDOM mean [utility] of consumers-on patches with [length listProvider != 0]
+  set utility-RANDOM mean [utility] of consumers with [length listProvider != 0]
 
   ;pour IT
-  ask consumers-on patches with [length listProvider != 0][
-    let idProvider [one-of listProvider] of patch-here
+  ask consumers with [length listProvider != 0][
+    let idProvider one-of listProvider
 
     ;si plusieur provider son dispo
-    if length [listProvider] of patch-here != 1 [
+    if length listProvider != 1 [
       set idProvider selectProvider
     ]
     if random-float 1 < %_transaction [
       makeTransaction idProvider
     ]
   ]
-  set utility-IT mean [utility] of consumers-on patches with [length listProvider != 0]
+  set utility-IT mean [utility] of consumers with [length listProvider != 0]
 
 
 
@@ -159,7 +153,14 @@ to go
 
     set color red
     set ratingData []
+    set listProvider []
+    let temp []
+    ask providers with [distance myself <= range_max] [
+      set temp lput who temp
+    ]
+    set listProvider temp
   ]
+
   tick
 end
 
@@ -167,27 +168,15 @@ end
 ;selectionne le provider
 to-report selectProvider
   let trustValues-IT []
-  let trustValues-RT []
-
 
   ;pour IT
-  ;pour chaque provider du patch
-  foreach [listProvider] of patch-here [
+  ;pour chaque provider du client
+  foreach listProvider [
     idProvider ->
     let list_transaction-IT getListTransaction-IT idProvider
     set trustValues-IT lput (list (trustFunction list_transaction-IT) idProvider) trustValues-IT
   ]
 
-  ;----------------------------------
-  ;trustfonction avec RT ?
-  ;----------------------------------
-  ;pour RT
-  ;pour chaque provider du patch
-  foreach [listProvider] of patch-here [
-    idProvider ->
-    let list_transaction-RT getListTransaction-RT idProvider
-    set trustValues-RT lput (list (trustFunction list_transaction-RT) idProvider) trustValues-RT
-  ]
 
   ;prend le plus haut taux de trustValues et report l'id du provider
   set trustValues-IT sort-by [ [a b] -> item 0 a >= item 0 b] trustValues-IT
@@ -201,6 +190,10 @@ to-report trustFunction [list_transaction]
   let down 0
   let wieght 0
 
+  let WK 2.0
+
+
+  ;trust
   ifelse length list_transaction = 0 [
     report 0
   ][
@@ -210,8 +203,32 @@ to-report trustFunction [list_transaction]
       set up (up + wieght * item 3 transaction)
       set down (down + wieght)
     ]
+    let TK up / down
 
-    report up / down
+    ;PRK
+    let gamma_k ( - ln 0.5)
+    let PRK (1 - exp ( gamma_k * down))
+
+
+    ;PDK
+    set up 0
+    set down 0
+    set wieght 0
+
+    foreach list_transaction [
+      transaction ->
+      set wieght giveWieght-IT transaction
+      set down (down + wieght)
+      set up (down * abs (item 3 transaction - TK))
+    ]
+    let PDK (1 - (0.5 * (up / down)))
+
+    let PK PRK * PDK
+
+    let omega_K WK * PK
+
+    report (omega_K * TK) / omega_K
+
   ]
 end
 
@@ -245,20 +262,6 @@ end
 
 
 to-report getListTransaction-IT [id_provider]
-  let listTransaction []
-  ;pour chaque transaction de l'agent
-  foreach ratingData [
-    transaction ->
-    ;si le provider est le même que celui actuellement
-    if item 1 transaction = id_provider and item 2 transaction = service[
-      ;on ajoute la transaction dans la liste
-      set listTransaction lput transaction listTransaction
-    ]
-  ]
-  report listTransaction
-end
-
-to-report getListTransaction-RT [id_provider]
   let listTransaction []
   ;pour chaque transaction de l'agent
   foreach ratingData [
@@ -329,13 +332,6 @@ to giveUtility [id_provider]
 end
 
 
-
-;nombre d'agent constant
-;on se déplace sur une sphere
-;proportion des catégories des provider page 139 on peut tirer sur une loi normale
-;est ce qu'on doit faire mourir et naitre des providers ?
-;peut être faire utilité une fois pour chaque provider (selon prof)
-;distance a modifier
 @#$#@#$#@
 GRAPHICS-WINDOW
 0
@@ -409,7 +405,7 @@ nbConsumer
 nbConsumer
 0
 500
-200.0
+204.0
 1
 1
 NIL
@@ -439,7 +435,7 @@ range_provider
 range_provider
 0
 20
-10.0
+5.0
 1
 1
 NIL
@@ -852,7 +848,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 3D 6.0.4
+NetLogo 3D 6.0.2
 @#$#@#$#@
 need-to-manually-make-preview-for-this-model
 @#$#@#$#@
