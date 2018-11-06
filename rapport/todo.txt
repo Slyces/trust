@@ -1,0 +1,5 @@
+Expliquer la répartition uniforme sur la sphère
+Expliquer pourquoi la distance 'surface' n'est pas pertinente : r_o est arbitraire (mais dire qu'on sait le faire) et il existe une constante tq.
+Faire des citations pour prouver que j'ai raison
+Différence entre dégradation linéaire à distance fixe et à distance variable.
+On garde UG fixé : pourquoi c'est nul (ben ils disent pas de faire ça, jsp si t'as lu Kant mais on a pas lu la même chose)
