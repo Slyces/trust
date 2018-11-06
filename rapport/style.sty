@@ -28,9 +28,29 @@
 
 \newenvironment{pseudocode}[1]{
     \begin{code}
-        \begin{center} \textsc{#1} \end{center} % \hline
+        \begin{center} \textsc{#1} \end{center}
+        \vspace{-15pt}
+        \textcolor{grey}{\rule{\textwidth}{1pt}}
+        \vspace{-18pt}
 }{
     \end{code}
+}
+
+\newenvironment{blockquote}[1]{
+    \newcommand*{\pagenumber}{#1}
+    \begin{center}
+        \begin{minipage}[c]{0.8\textwidth}
+        \og
+}{
+        \fg
+        \end{minipage}
+    \end{center}
+
+    \begin{center}
+        \begin{minipage}[r]{\textwidth}
+            \hspace*{0pt}\hfill\texttt{page \pagenumber}
+        \end{minipage}
+    \end{center}
 }
 
 % ------------------------------------------------------------

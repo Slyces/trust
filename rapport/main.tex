@@ -4,7 +4,7 @@
 %\usepackage[utf8]{inputenc}
  \usepackage{fontspec}
 %\usepackage[T1]{fontenc}
-%\usepackage[francais]{babel}
+\usepackage[francais]{babel}
 \usepackage{style}
 
 % ------------------------------------------------------------
@@ -158,6 +158,10 @@ Les auteurs proposent un modèle de confiance permettant à un agent de juger de
 \begin{hypothese}{Valeur d'un rating}
 \label{hyp:rating}
 
+\begin{blockquote}{137}
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris dignissim, lectus vitae viverra dignissim, massa ante faucibus mi, quis luctus lorem ligula a nunc. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Etiam consectetur viverra urna. Donec interdum sollicitudin hendrerit. Etiam id felis euismod, tristique leo a, fringilla odio. Nullam vulputate risus id viverra pellentesque.
+\end{blockquote}
+
 Dans le modèle, après toute intéraction $i$ entre $a$ et $b$, l'agent $a$ crée un rating $r$ pour chacun des critères $c$ évaluables dans cette interaction. Ce rating prend la forme d'un tuple $r = (a, b, c, i, v)$ où $v \in [-1,1]$ est la valeur que $a$ donne à $b$ pour le critère $c$ lors de l'interaction $i$.
 Cependant, il n'est nulle part précisé comment l'agent $a$ détermine cette valeur. Nous savons que dans le \emph{testbed} fourni par l'article, $a$ reçoit une utilité \UG $\in [-10,10]$. Nous ferons donc les hypothèses suivantes :
 \begin{itemize}
@@ -221,7 +225,6 @@ Cette interprétation nous semble la plus logique. Cependant, il faut choisir un
 \end{hypothese}
 
 \begin{hypothese}{Répartition des agents dans l'espace}
-
 L'article ne précise pas la loi de probabilité suivie par les coordonnée des agents. C'est un détail important au vu de l'importance de la topologie dans cette simulation. Nous partons du principe que la distribution souhaitée par les auteurs est une distribution uniforme sur l'ensemble de la sphère. Il existe plusieurs méthode pour obtenir une telle distribution.\newline
 
 La première est de considérer les coordonnées sphériques $r, \varphi, \theta$, avec $r \in [0, 1]$, $\varphi \in [0, \pi[$, $\theta \in ]-\pi, +\pi]$. On définit alors la position d'un nouvel agent comme le tirage aléatoire de trois variables uniformes $r, \varphi, \theta$ sur leurs espaces de définitions respectifs.\newline
