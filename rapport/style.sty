@@ -21,7 +21,8 @@
 \newcounter{hypothesis}
 \newenvironment{hypothese}[1]{
     \refstepcounter{hypothesis}
-    \noindent$\mathcal{H}\thehypothesis$ -- \textsc{#1}\vspace{4pt}
+    \noindent$\mathcal{H}\thehypothesis$ -- \textsc{#1}\vspace{4pt}\newline
+    \indent
 }{
     \vspace{10pt}
 }
@@ -48,8 +49,7 @@
 
     \begin{center}
         \begin{minipage}[r]{\textwidth}
-            \hspace*{0pt}\hfill\texttt{page \pagenumber}
-        \end{minipage}
+            \hspace*{0pt}\hfill\texttt{page \pagenumber} \end{minipage}
     \end{center}
 }
 

@@ -1,24 +1,131 @@
-; Liste des choses à faire
-;
-; Fonctions utilitaires
-;   - calcul de la distance (euclidienne)
-;   -
-;
 ; Constantes
-; | N       | nombre de rounds           | 50           |
-; | H       | history size               | 10           |
-; | λ       | recency scaling factor     | - 5 / ln(.5) |
-; | η_BF    | branching factor           | 2            |
-; | η_RL    | referral max length        | 5            |
-; | α_space | espace de l'activity level | [.25, 1.0]   |
-; |         |                            |              |
-; | N       | #Providers                 | 100          |
-; | Npg     | - Good                     | 10           |
-; | Npo     | - Ordinary                 | 40           |
-; | Npb     | - Bad                      | 5            |
-; | Npi     | - Intermitent              | 45           |
-; | Nc      | #Consumer                  | 500          |
+; | N        | nombre de rounds              | 50           |
+; | H        | history size                  | 10           |
+; | λ        | recency scaling factor        | - 5 / ln(.5) |
 
+; | η_BF     | branching factor              | 2            |
+; | η_RL     | referral max length           | 5            |
+
+; | α_min    | espace de l'activity level    | 0.25         |
+; | α_max    |                               | 1.00         |
+
+; | ug_min   | utilité minimale              | -10          |
+; | ug_max   | ---   maximale                | -10          |
+
+; | r_cons   | r_o consumer                  | ??           |
+; | r_prov   | r_o provider                  | ??           |
+
+; | PL_perf  | palier perfect                | 10           |
+; | PL_good  | --   good                     | 10           |
+; | PL_ok    | --   ok                       | 10           |
+; | PL_bad   | --   bad                      | 10           |
+; | PL_worst | --   worst                    | 10           |
+
+; | N_tot    | #Providers                    | 100          |
+; | Npg      | - Good                        | 10           |
+; | Npo      | - Ordinary                    | 40           |
+; | Npb      | - Bad                         | 5            |
+; | Npi      | - Intermitent                 | 45           |
+; | Nc       | #Consumer                     | 500          |
+
+; | W_I      | Poids Interactions            | 2.0          |
+; | W_R      | ---  Roles                    | 2.0          |
+; | W_W      | ---  Witnesses                | 2.0          |
+; | W_C      | ---  Certificats              | 2.0          |
+
+; | γ_I      | constante gamma               | - ln(.5)     |
+; | γ_R      |                               | - ln(.5)     |
+; | γ_W      |                               | - ln(.5)     |
+; | γ_C      |                               | - ln(.5)     |
+
+; | p_ppc    | %max nouveaux provider        | 2%           |
+; | p_cpc    | %max    --    consumer        | 5%           |
+
+; | p_plp    | proba qu'un provider bouge    | 10%          |
+; | p_plc    | ---  -- -- consumer  ---      | 10%          |
+; | ΔΦ_p     | borne déplacement provider    |  π / 20      |
+; | ΔΦ_c     | ---      ----    consumer     |  π / 20      |
+
+; | p_μc     | proba de changement de μ      | 10%          |
+; | M        | Δμ max                        | 1.0          |
+; | p_pr_sw  | proba de changement de profil | 2%           |
+
+; Fonctions utilitaires
+;   - U(a, b) : flotant aléatoire entre a et b inclus
+;   - G(μ, σ) : variable aléatoire suivant une loi normale N(μ, σ)
+;   - d(a, b) : distance euclidienne entre a et b (où a = (ax, ay, az))
+;               simplification depuis la distance à la surface d'une sphère [@H]
+;   - register(L, T) : enregistre le tuple T dans la liste L
+;       si L n'est pas plein
+;          ajouter T
+;       sinon
+;          supprimer l'entrée (a, b, v, t) avec t minimal
+;   - register_best(L, T) : enregistre le tuple T s'il est meilleur que
+;                           le moins bon tuple de L
+;       si T(v) > min(T'(v)) ∀ T' ∈ L
+;          ajouter T à la place de T' le min
+;   - current_round(void) : récupérer le round en cours
+;   - near_providers(a) : donne les providers dispo pour l'agent a [@H]
+;       retourner les providers p tq d(a, p) < a.r_o
+;   - near_consumers(a) : donne les providers dispo pour l'agent a
+;       retourner les consumers c tq d(a, c) < a.r_o
+;
+; Initialisation Consumer
+;   - (x, y, z) aléatoire uniforme à la surface de la sphère
+;   - r_o = r_cons
+;   - α = U(α_min, α_max)
+;   - ug_sum = 0 : somme des ug gagnés    depuis le début
+;   - ug_n = 0   : nombre d'intéractions  ------ -- -----
+;   - ug_mean(void): renvoie l'ug moyen dur toutes les transactions
+;       return ug_sum / ug_n
+;   - L = liste de taille H contentant des éléments de forme
+;       (a, b, r, t) : a = agent consumer
+;                      b = agent provider
+;                      r = valeur de l'interaction
+;                      t = temps en round
+;       simplification depuis (a, b, c, i, r) car c unique et i non-utilisé [@H]
+;   - val(ug) : valuation de l'UG pour a
+;        return ug / 10
+;
+; Initialisation Provider
+;   - Type parmi : (good, ordinary, bad, intermitent)
+;   - case(type) :
+;      good     : μ = U(PL_good, PL_perf)
+;                 σ = 1.0
+;      ordinary : μ = U(PL_ok, PL_good)
+;                 σ = 1.0
+;      bad      : μ = U(PL_worst, PL_ok)
+;                 σ = 2.0
+;   - r_o = r_prov
+;   - provide(void) : fonction
+;      si type ∈ (good, ordinary, bad)
+;          renvoie μ       (simplification de G(μ, σ) ) [@H]
+;      sinon
+;          renvoie U(PL_bad, PL_good)
+;
+; Interaction(a, b) : a consumer, b provider
+;    ug = b.provide()   récupérer l'ug de b
+;    a.ug_n += 1
+;    a.ug_sum += ug
+;    v = val(ug)
+;    r = (a, b, v, current_round())
+;    register(a.L, r)
+;    register_best(b.L, r)
+;
+; Choix d'un provider : a consumer
+;    P = near_providers(a)
+;    T_max = -10
+;    LT = liste vide
+;    LNT = liste vide
+;    ∀ p ∈ P
+;       T_p = Trust(p)
+;       si T_p ≠ ∅
+;          add(LT, (p, T_p))
+;          T_max = max(T_max, T_p)
+;       sinon
+;          add(LNT, p)
+;    er_prof = exp( T_max / T )
+;
 
 
 breed [providers provider]
