@@ -128,8 +128,9 @@
 ;       T_p = Trust(a, p)
 ;       si T_p ≠ ∅
 ;          add(trusted, (p, T_p))
-;          T_max = T_p
-;          p_max = p
+;          si T_p > T_max:
+;              T_max = T_p
+;              p_max = p
 ;       sinon
 ;          add(not_trusted, p)
 ;    err_profit  = exp( T_max / T(t) )
@@ -149,7 +150,7 @@
 ;
 ; function ω_R : r un rating (a, b, c, e, v)
 ;   return e
-; 
+;
 ; Calcul de T_I, T_W, T_C: ensemble de rating R
 ;   Σω𝑣 = 0
 ;   Σω = 0
@@ -235,6 +236,9 @@ consumers-own [
   listProvider
   ratingData   ;liste des transactions que le consumer a effectué max 10
   utility
+  utility_sum
+  utility_mean
+  nbTransaction
 ]
 providers-own [
   mean_provider
@@ -293,14 +297,14 @@ to setup
     set type_provider "good"
   ]
 
-  ask n-of round (nbProvider / 1.82) providers with [type_provider = 0][
+  ask n-of round (nbProvider / 2.5) providers with [type_provider = 0][
     set type_provider "ordinary"
   ]
 
-  ask n-of round (nbProvider / 4) providers with [type_provider = 0][
+  ask n-of round (nbProvider / 2.22) providers with [type_provider = 0][
     set type_provider "intermittent"
   ]
-  ask n-of round (nbProvider / 10) providers[
+  ask n-of round (nbProvider / 20) providers[
     set type_provider "bad"
   ]
 
@@ -319,12 +323,11 @@ to go
   ask consumers with [length listProvider != 0][
     let idProvider one-of listProvider
 
-    if random-float 1 < %_transaction [
-      ;random selection
-      makeTransaction idProvider
-      ;supprime la transaction
-      set ratingData remove-item (length ratingData - 1) ratingData
-    ]
+    ;random selection
+    makeTransaction idProvider
+    ;supprime la transaction
+    set ratingData remove-item (length ratingData - 1) ratingData
+
   ]
 
   set utility-RANDOM mean [utility] of consumers with [length listProvider != 0]
@@ -337,9 +340,9 @@ to go
     if length listProvider != 1 [
       set idProvider selectProvider
     ]
-    if random-float 1 < %_transaction [
-      makeTransaction idProvider
-    ]
+
+    makeTransaction idProvider
+
   ]
   set utility-IT mean [utility] of consumers with [length listProvider != 0]
 
@@ -371,25 +374,61 @@ end
 
 ;selectionne le provider
 to-report selectProvider
-  let trustValues-IT []
+  let trustValues []
+  let selected 0
 
   ;pour IT
   ;pour chaque provider du client
   foreach listProvider [
     idProvider ->
-    let list_transaction-IT getListTransaction-IT idProvider
-    set trustValues-IT lput (list (trustFunction list_transaction-IT) idProvider) trustValues-IT
+    let list_transaction getListTransaction-IT idProvider
+    set trustValues lput (list (trustFunction list_transaction) idProvider) trustValues
   ]
 
+  ;choix du provider en fonction de la temperature
 
-  ;prend le plus haut taux de trustValues et report l'id du provider
-  set trustValues-IT sort-by [ [a b] -> item 0 a >= item 0 b] trustValues-IT
-  let selected item 1 item 0 trustValues-IT
+  let list_trusted filter [ i -> item 0 i != 0] trustValues
+  ;classe décroissant
+  set list_trusted sort-by [ [a b] -> item 0 a >= item 0 b] list_trusted
+
+  let list_not_trusted filter [ i -> item 0 i = 0] trustValues
+
+  if empty? list_trusted [
+    set selected item 1 one-of list_not_trusted
+    report selected
+  ]
+  if empty? list_not_trusted [
+      set selected item 1 item 0 list_trusted
+      report selected
+  ]
+
+  let err_profit exp ( (item 0 item 0 list_trusted) * ln ticks)
+
+  let err_explore exp ( (utility_mean / 10 ) * ln ticks)
+
+  let p_expl err_explore / ( err_explore + err_profit)
+  ifelse random-float 1 < p_expl [
+    set selected item 1 one-of list_not_trusted
+  ][
+    set selected item 1 item 0 list_trusted
+  ]
+
   report selected
+
+ ; err_profit  = exp( T_max / T(t) )
+;    err_explore = exp( val(ug_mean()) / T(t))
+;    p_expl = err_expl / (err_expl + err_profit)
+;    if rand(p_expl) :
+;        return r_choice(LNT)
+;    else
+;        return p_max
+
+
 
 end
 
 to-report trustFunction [list_transaction]
+
   let up 0
   let down 0
   let wieght 0
@@ -397,7 +436,7 @@ to-report trustFunction [list_transaction]
   let WK 2.0
 
 
-  ;trust
+  ;TK
   ifelse length list_transaction = 0 [
     report 0
   ][
@@ -487,6 +526,12 @@ to makeTransaction [id_provider]
   ;normalize l'utilité
   let note utility / 10
 
+  ;fait la moyenne de toutes les transactions déja efféctué.
+  set utility_sum utility + utility_sum
+  set nbTransaction nbTransaction + 1
+  set utility_mean utility_sum / nbTransaction
+
+
   let transaction (list idTransaction id_provider service note ticks)
   set idTransaction idTransaction + 1
 
@@ -534,8 +579,6 @@ to giveUtility [id_provider]
   ]
 
 end
-
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 0
@@ -609,7 +652,7 @@ nbConsumer
 nbConsumer
 0
 500
-204.0
+500.0
 1
 1
 NIL
@@ -624,7 +667,7 @@ nbProvider
 nbProvider
 0
 100
-45.0
+100.0
 1
 1
 NIL
@@ -639,7 +682,7 @@ range_provider
 range_provider
 0
 20
-5.0
+10.0
 1
 1
 NIL
@@ -695,20 +738,23 @@ coeff_radius_max
 NIL
 HORIZONTAL
 
-SLIDER
-250
-299
-422
-332
-%_transaction
-%_transaction
-0
-1
-1.0
-0.05
-1
+PLOT
+963
+86
+1163
+236
+plot 1
 NIL
-HORIZONTAL
+NIL
+0.0
+10.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot ln ticks"
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1052,7 +1098,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 3D 6.0.2
+NetLogo 3D 6.0.4
 @#$#@#$#@
 need-to-manually-make-preview-for-this-model
 @#$#@#$#@
