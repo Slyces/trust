@@ -362,6 +362,7 @@ end
 ;selectionne le provider
 to-report selectProvider
   let trustValues []
+  let selected 0
 
   ;pour IT
   ;pour chaque provider du client
@@ -379,12 +380,27 @@ to-report selectProvider
 
   let list_not_trusted filter [ i -> item 0 i = 0] trustValues
 
-  let err_profit exp ( (item 0 item 0 list_trusted) / (1 / ticks))
-  let err_explore exp ( (utility_mean / 10) / (1 / ticks))
+  if empty? list_trusted [
+    set selected item 1 one-of list_not_trusted
+    report selected
+  ]
+  if empty? list_not_trusted [
+      set selected item 1 item 0 list_trusted
+      report selected
+  ]
+
+  let err_profit exp ( (item 0 item 0 list_trusted) * ln ticks)
+
+  let err_explore exp ( (utility_mean / 10 ) * ln ticks)
 
   let p_expl err_explore / ( err_explore + err_profit)
+  ifelse random-float 1 < p_expl [
+    set selected item 1 one-of list_not_trusted
+  ][
+    set selected item 1 item 0 list_trusted
+  ]
 
-
+  report selected
 
  ; err_profit  = exp( T_max / T(t) )
 ;    err_explore = exp( val(ug_mean()) / T(t))
@@ -395,10 +411,6 @@ to-report selectProvider
 ;        return p_max
 
 
-
-  ;selecte le provider
-  let selected item 1 item 0 trustValues
-  report selected
 
 end
 
@@ -554,7 +566,6 @@ to giveUtility [id_provider]
   ]
 
 end
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 0
@@ -628,7 +639,7 @@ nbConsumer
 nbConsumer
 0
 500
-3.0
+500.0
 1
 1
 NIL
@@ -713,6 +724,24 @@ coeff_radius_max
 1
 NIL
 HORIZONTAL
+
+PLOT
+963
+86
+1163
+236
+plot 1
+NIL
+NIL
+0.0
+10.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot ln ticks"
 
 @#$#@#$#@
 ## WHAT IS IT?
