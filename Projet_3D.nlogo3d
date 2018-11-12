@@ -30,8 +30,8 @@
 
 ; | W_I      | Poids Interactions            | 2.0          |
 ; | W_R      |  ---  Roles                   | 2.0          |
-; | W_W      |  ---  Witnesses               | 2.0          |
-; | W_C      |  ---  Certificats             | 2.0          |
+; | W_W      |  ---  Witnesses               | 1.0          |
+; | W_C      |  ---  Certificats             | 0.5          |
 
 ; | γ_I      | constante gamma               | - ln(.5)     |
 ; | γ_R      |                               | - ln(.5)     |
@@ -81,7 +81,7 @@
 ;   - α = U(α_min, α_max)
 ;   - ug_sum = 0 : somme des ug gagnés    depuis le début
 ;   - ug_n = 0   : nombre d'intéractions  ------ -- -----
-;   - ug_mean(void): renvoie l'ug moyen dur toutes les transactions
+;   - ug_mean(void): renvoie l'ug moyen dur toutes les transactions [@H]
 ;       return ug_sum / ug_n
 ;   - L = liste de taille H contentant des éléments de forme
 ;       (a, b, r, t) : a = agent consumer
@@ -94,6 +94,7 @@
 ;
 ; Initialisation Provider
 ;   - Type parmi : (good, ordinary, bad, intermitent)
+;   - L = liste de taille  H (voir consumer)
 ;   - case(type) :
 ;      good     : μ = U(PL_good, PL_perf) [@H]
 ;                 σ = 1.0
@@ -119,27 +120,27 @@
 ;
 ; Choix d'un provider : a consumer
 ;    P = near_providers(a)
-;    T_max = -10
+;    T_max = -1
 ;    p_max = ∅
-;    LT = liste vide
-;    LNT = liste vide
+;    trusted = ∅
+;    not_trusted = ∅
 ;    ∀ p ∈ P
 ;       T_p = Trust(a, p)
 ;       si T_p ≠ ∅
-;          add(LT, (p, T_p))
-;          T_max = max(T_max, T_p)
+;          add(trusted, (p, T_p))
+;          T_max = T_p
 ;          p_max = p
 ;       sinon
-;          add(LNT, p)
+;          add(not_trusted, p)
 ;    err_profit  = exp( T_max / T(t) )
-;    err_explore = exp( ug_mean() / T(t) )
+;    err_explore = exp( val(ug_mean()) / T(t) ) [@H]
 ;    p_expl = err_expl / (err_expl + err_profit)
 ;    if rand(p_expl) :
-;        return r_choice(LNT)
+;        return r_choice(not_trusted)
 ;    else
 ;        return p_max
 ;
-; @TODO : rechercher la valeur de T (Blotzmann exploration strategy)
+; @TODO : rechercher la valeur de T (Boltzmann exploration strategy)
 ;         on part sur du ( 1 / t )
 ;
 ; fonction ω_I, ω_W, ω_C: r un rating (a, b, c, i, v)
@@ -163,25 +164,37 @@
 ;   ρ_K = ρ_RK * ρ_DK
 ;   return (T_K, ρ_K)
 ;
+; -----------
 ; Construction de R_I: consumer a, provider b
 ;   return { r | r.b = b, t(r) < curr_t }
-;   
-; Construction de R_W: consumer a, provider b
+; -----------
+; Meilleurs voisins: consumer a, provider b
 ;   V = near_consumers(a)
 ;   sort(V, dist(x, b))
-;   sélectionner les η_BF meilleurs dans V_best
-;   ∀ v ∈ V_best:
+;   return η_BF meilleurs de V
 ;   
-;
-;
-;
-;
-;
+; Construction de R_W: consumer a, provider b
+;   visited = ∅
+;   R = ∅
+;   V = best_neighbors(a, b)
+;   nextV = ∅
+;   pour n = 1 -> η_RL
+;       ∀ v ∈ V:
+;           si v ∉ visited:
+;               visited.add(v)
+;               RI_v = R_I(v, b)
+;               si R_I ≠ ∅:
+;                   merge(R, RI_v)
+;               sinon:
+;                   merge(V_next, best_neighbors(v, b))
+;       V = V_next
+;       V_next = ∅
+; -----------
 ; Construction de R_C: consumer a, provider b
-;
+;   return b.L
+; -----------
 ; Construction de R_R: consumer a, provider b
-;
-;
+;   ??
 ;
 ; Dynamisme de population :
 ;   Δprov = U(0, p_ppc)
