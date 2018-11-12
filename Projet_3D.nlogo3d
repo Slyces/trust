@@ -21,7 +21,7 @@
 ; | PL_bad   | --   bad                      | 10           |
 ; | PL_worst | --   worst                    | 10           |
 
-; | N_tot    | #Providers                    | 100          |
+; | Np       | #Providers                    | 100          |
 ; | Npg      | - Good                        | 10           |
 ; | Npo      | - Ordinary                    | 40           |
 ; | Npb      | - Bad                         | 5            |
@@ -29,9 +29,9 @@
 ; | Nc       | #Consumer                     | 500          |
 
 ; | W_I      | Poids Interactions            | 2.0          |
-; | W_R      | ---  Roles                    | 2.0          |
-; | W_W      | ---  Witnesses                | 2.0          |
-; | W_C      | ---  Certificats              | 2.0          |
+; | W_R      |  ---  Roles                   | 2.0          |
+; | W_W      |  ---  Witnesses               | 2.0          |
+; | W_C      |  ---  Certificats             | 2.0          |
 
 ; | γ_I      | constante gamma               | - ln(.5)     |
 ; | γ_R      |                               | - ln(.5)     |
@@ -49,12 +49,14 @@
 ; | p_μc     | proba de changement de μ      | 10%          |
 ; | M        | Δμ max                        | 1.0          |
 ; | p_pr_sw  | proba de changement de profil | 2%           |
-
+;
 ; Fonctions utilitaires
 ;   - U(a, b) : flotant aléatoire entre a et b inclus
 ;   - G(μ, σ) : variable aléatoire suivant une loi normale N(μ, σ)
 ;   - d(a, b) : distance euclidienne entre a et b (où a = (ax, ay, az))
 ;               simplification depuis la distance à la surface d'une sphère [@H]
+;   - r_choice(L) : retourne un élément aléatoire de L
+;   - rand(p) : retourne vrai avec une probabilité p
 ;   - register(L, T) : enregistre le tuple T dans la liste L
 ;       si L n'est pas plein
 ;          ajouter T
@@ -64,14 +66,17 @@
 ;                           le moins bon tuple de L
 ;       si T(v) > min(T'(v)) ∀ T' ∈ L
 ;          ajouter T à la place de T' le min
-;   - current_round(void) : récupérer le round en cours
+;   - curr_t(void) : récupérer le round en cours
+;   - t(r) : renvoie le round où un rating a été créé
 ;   - near_providers(a) : donne les providers dispo pour l'agent a [@H]
 ;       retourner les providers p tq d(a, p) < a.r_o
 ;   - near_consumers(a) : donne les providers dispo pour l'agent a
 ;       retourner les consumers c tq d(a, c) < a.r_o
+;   - T(t) : 1 / t : température pour l'exploration de Boltzmann [@H]
+;
 ;
 ; Initialisation Consumer
-;   - (x, y, z) aléatoire uniforme à la surface de la sphère
+;   - (x, y, z) aléatoire uniforme à la surface de la sphère [@H]
 ;   - r_o = r_cons
 ;   - α = U(α_min, α_max)
 ;   - ug_sum = 0 : somme des ug gagnés    depuis le début
@@ -90,7 +95,7 @@
 ; Initialisation Provider
 ;   - Type parmi : (good, ordinary, bad, intermitent)
 ;   - case(type) :
-;      good     : μ = U(PL_good, PL_perf)
+;      good     : μ = U(PL_good, PL_perf) [@H]
 ;                 σ = 1.0
 ;      ordinary : μ = U(PL_ok, PL_good)
 ;                 σ = 1.0
@@ -109,27 +114,106 @@
 ;    a.ug_sum += ug
 ;    v = val(ug)
 ;    r = (a, b, v, current_round())
-;    register(a.L, r)
-;    register_best(b.L, r)
+;    register(a.L, r)         | pseudocode, mais essayer de
+;    register_best(b.L, r)    | prendre en compte la simultanéité
 ;
 ; Choix d'un provider : a consumer
 ;    P = near_providers(a)
 ;    T_max = -10
+;    p_max = ∅
 ;    LT = liste vide
 ;    LNT = liste vide
 ;    ∀ p ∈ P
-;       T_p = Trust(p)
+;       T_p = Trust(a, p)
 ;       si T_p ≠ ∅
 ;          add(LT, (p, T_p))
 ;          T_max = max(T_max, T_p)
+;          p_max = p
 ;       sinon
 ;          add(LNT, p)
-;    er_prof = exp( T_max / T )
+;    err_profit  = exp( T_max / T(t) )
+;    err_explore = exp( ug_mean() / T(t) )
+;    p_expl = err_expl / (err_expl + err_profit)
+;    if rand(p_expl) :
+;        return r_choice(LNT)
+;    else
+;        return p_max
 ;
-
-;nombre d'agent constant
-;proportion des catégories des provider page 139 on peut tirer sur une loi normale
-;est ce qu'on doit faire mourir et naitre des providers ?
+; @TODO : rechercher la valeur de T (Blotzmann exploration strategy)
+;         on part sur du ( 1 / t )
+;
+; fonction ω_I, ω_W, ω_C: r un rating (a, b, c, i, v)
+;   Δt(r) = curr_t - t(r)
+;   return exp(- Δt / λ )
+;
+; function ω_R : r un rating (a, b, c, e, v)
+;   return e
+; 
+; Calcul de T_I, T_W, T_C: ensemble de rating R
+;   Σω𝑣 = 0
+;   Σω = 0
+;   ∀ r ∈ R:
+;       Σω𝑣 += ω_I(r) * r.𝑣
+;       Σω = ω_I(r)
+;   T_K = Σω𝑣 / Σω
+;   ρ_RK = 1 - exp(-γ_K * Σω)
+;   ∀ r ∈ R:
+;       Σω𝑣𝑇 += ω_I(r) * |r.𝑣 - T_K|
+;   ρ_DK = 1 - 0.5 * ( Σω𝑣𝑇  / Σω )
+;   ρ_K = ρ_RK * ρ_DK
+;   return (T_K, ρ_K)
+;
+; Construction de R_I: consumer a, provider b
+;   return { r | r.b = b, t(r) < curr_t }
+;   
+; Construction de R_W: consumer a, provider b
+;   V = near_consumers(a)
+;   sort(V, dist(x, b))
+;   sélectionner les η_BF meilleurs dans V_best
+;   ∀ v ∈ V_best:
+;   
+;
+;
+;
+;
+;
+; Construction de R_C: consumer a, provider b
+;
+; Construction de R_R: consumer a, provider b
+;
+;
+;
+; Dynamisme de population :
+;   Δprov = U(0, p_ppc)
+;   retirer (Δprov * Np) random providers
+;   ajouter (Δprov * Np) random providers (de même type ?) [@H]
+;                                         (de même distribution ?) [@H]
+;   Δcons = U(0, p_cpc)
+;   retirer (Δcons * Nc) random providers
+;   ajouter (Δcons * Nc) random providers (de même type ?) [@H]
+;                                         (de même distribution ?) [@H]
+;   ∀ p ∈ population(providers):
+;       if rand(p_ps):
+;           changer le profil de p
+;           réinitialiser μ_𝑝, σ_𝑝
+;       else if rand(p_μ𝑐): [@H] (else if)
+;           Δμ = U(-M, +M)
+;           p.μ = max(p.μ_min, min(p.μ_max, p.μ + Δ_μ) ) [@H]
+;       if rand(p_plc):
+;           Δθ = U(−ΔΦ, +ΔΦ)
+;           Δφ = U(−ΔΦ, +ΔΦ)
+;           p.θ += Δθ
+;           p.φ += Δφ
+;   ∀ c ∈ population(consumers):
+;       if rand(p_clc):
+;           Δθ = U(−ΔΦ, +ΔΦ)
+;           Δφ = U(−ΔΦ, +ΔΦ)
+;           c.θ += Δθ
+;           c.φ += Δφ
+;
+; nombre d'agent constant
+; proportion des catégories des provider page 139 on peut tirer sur une loi normale
+; est ce qu'on doit faire mourir et naitre des providers ?
 
 breed [providers provider]
 breed [consumers consumer]
