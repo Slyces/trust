@@ -165,6 +165,15 @@
 ;   ρ_K = ρ_RK * ρ_DK
 ;   return (T_K, ρ_K)
 ;
+; Calcul de Trust: consumer a, provider b
+;   T_I, ρ_I = T_K(R_I(a, b))
+;   T_W, ρ_W = T_K(R_W(a, b))
+;   T_C, ρ_C = T_K(R_C(a, b))
+;   T_R, ρ_R = T_R(R_R(a, b)) : cas particulier
+;   ΣwT = W_I * ρ_I * T_I + W_W * ρ_W * T_W + W_C * ρ_C * T_C + W_R * ρ_R * T_R
+;   Σw = W_I * ρ_I + W_W * ρ_W + W_C * ρ_C + W_R * ρ_R
+;   T = ΣwT / Σ𝑤
+;
 ; -----------
 ; Construction de R_I: consumer a, provider b
 ;   return { r | r.b = b, t(r) < curr_t }
