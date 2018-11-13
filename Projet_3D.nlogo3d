@@ -395,6 +395,8 @@ end
 to-report selectProvider
   let trustValues []
   let selected 0
+  let temperature ln (ticks  + 1)
+
 
   ;pour IT
   ;pour chaque provider du client
@@ -420,9 +422,9 @@ to-report selectProvider
       report selected
   ]
 
-  let err_profit exp ( (item 0 item 0 list_trusted) * ln ticks)
+  let err_profit exp ( (item 0 item 0 list_trusted) * temperature)
 
-  let err_explore exp ( (utility_mean / 10 ) * ln ticks)
+  let err_explore exp ( (utility_mean / 10 ) * temperature)
 
   let p_expl err_explore / ( err_explore + err_profit)
   ifelse random-float 1 < p_expl [
@@ -433,24 +435,18 @@ to-report selectProvider
 
   report selected
 
- ; err_profit  = exp( T_max / T(t) )
-;    err_explore = exp( val(ug_mean()) / T(t))
-;    p_expl = err_expl / (err_expl + err_profit)
-;    if rand(p_expl) :
-;        return r_choice(LNT)
-;    else
-;        return p_max
-
-
-
 end
 
 to-report Trust [idProvider]
 
+  let wt 0
+  let w 0
 
   if W_I != 0 [
-  let list_transaction-IT getListTransaction-IT idProvider
-  let trust-IT trustFunction list_transaction-IT false
+    let list_transaction-IT getListTransaction-IT idProvider
+    let trust-IT trustFunction list_transaction-IT false
+    set w w + (W_I * item 1 trust-IT)
+    set wt wt + (W_I * item 1 trust-IT * item 0 trust-IT)
   ]
 
   if W_W != 0 []
@@ -459,7 +455,13 @@ to-report Trust [idProvider]
 
   if W_R != 0 []
 
-  let T 0
+  let R_T w / (W_I + W_W + W_C + W_R)
+
+  if R_T = 0 [
+    report 5
+  ]
+
+  let T wt / w
 
   report T
 
@@ -474,7 +476,7 @@ to-report trustFunction [list_transaction bool_roleBased]
 
   ;TK
   ifelse length list_transaction = 0 [
-    report 5
+    report list 5 0
   ][
     foreach list_transaction [
       transaction ->
@@ -774,24 +776,6 @@ coeff_radius_max
 1
 NIL
 HORIZONTAL
-
-PLOT
-963
-86
-1163
-236
-plot 1
-NIL
-NIL
-0.0
-10.0
-0.0
-1.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot ln ticks"
 
 @#$#@#$#@
 ## WHAT IS IT?
