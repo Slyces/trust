@@ -182,7 +182,7 @@
 ;   V = near_consumers(a)
 ;   sort(V, dist(x, b))
 ;   return η_BF meilleurs de V
-;   
+;
 ; Construction de R_W: consumer a, provider b
 ;   visited = ∅
 ;   R = ∅
@@ -263,6 +263,11 @@ globals [
   utility-RANDOM
 
   range_max
+
+  W_I
+  W_R
+  W_C
+  W_W
 ]
 
 
@@ -272,6 +277,11 @@ to setup
   reset-ticks
   set service "quality"
   set range_max round (range_provider + (range_provider * coeff_radius_max))
+
+  set W_I 2.0
+  set W_R 2.0
+  set W_C 0.5
+  set W_W 1.0
 
   create-consumers nbConsumer [
     tilt-up asin (1.0 - random-float 2)
@@ -390,17 +400,16 @@ to-report selectProvider
   ;pour chaque provider du client
   foreach listProvider [
     idProvider ->
-    let list_transaction getListTransaction-IT idProvider
-    set trustValues lput (list (trustFunction list_transaction) idProvider) trustValues
+    set trustValues lput (list (Trust idProvider) idProvider) trustValues
   ]
 
   ;choix du provider en fonction de la temperature
 
-  let list_trusted filter [ i -> item 0 i != 0] trustValues
+  let list_trusted filter [ i -> item 0 i != 5] trustValues
   ;classe décroissant
   set list_trusted sort-by [ [a b] -> item 0 a >= item 0 b] list_trusted
 
-  let list_not_trusted filter [ i -> item 0 i = 0] trustValues
+  let list_not_trusted filter [ i -> item 0 i = 5] trustValues
 
   if empty? list_trusted [
     set selected item 1 one-of list_not_trusted
@@ -436,24 +445,42 @@ to-report selectProvider
 
 end
 
-to-report trustFunction [list_transaction]
+to-report Trust [idProvider]
+
+
+  if W_I != 0 [
+  let list_transaction-IT getListTransaction-IT idProvider
+  let trust-IT trustFunction list_transaction-IT false
+  ]
+
+  if W_W != 0 []
+
+  if W_C != 0 []
+
+  if W_R != 0 []
+
+  let T 0
+
+  report T
+
+end
+
+to-report trustFunction [list_transaction bool_roleBased]
 
   let up 0
   let down 0
-  let wieght 0
-
-  let WK 2.0
+  let weight 0
 
 
   ;TK
   ifelse length list_transaction = 0 [
-    report 0
+    report 5
   ][
     foreach list_transaction [
       transaction ->
-      set wieght giveWieght-IT transaction
-      set up (up + wieght * item 3 transaction)
-      set down (down + wieght)
+      set weight giveWeight transaction bool_roleBased
+      set up (up + weight * item 3 transaction)
+      set down (down + weight)
     ]
     let TK up / down
 
@@ -465,30 +492,31 @@ to-report trustFunction [list_transaction]
     ;PDK
     set up 0
     set down 0
-    set wieght 0
+    set weight 0
 
     foreach list_transaction [
       transaction ->
-      set wieght giveWieght-IT transaction
-      set down (down + wieght)
+      set weight giveWeight transaction bool_roleBased
+      set down (down + weight)
       set up (down * abs (item 3 transaction - TK))
     ]
     let PDK (1 - (0.5 * (up / down)))
 
     let PK PRK * PDK
 
-    let omega_K WK * PK
-
-    report (omega_K * TK) / omega_K
+    ;renvoi une liste
+    report list TK PK
 
   ]
 end
 
-to-report giveWieght-IT [transaction]
-  let time ticks - item 4 transaction
-  let lambda (- (5 / ln 0.5))
+to-report giveWeight [transaction bool_roleBased]
+  ifelse bool_roleBased = false [
+    let time ticks - item 4 transaction
+    let lambda (- (5 / ln 0.5))
 
-  report exp ( - (time / lambda))
+    report exp ( - (time / lambda))
+  ][]
 end
 
 
