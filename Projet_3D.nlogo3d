@@ -283,10 +283,19 @@ to setup
   set service "quality"
   set range_max round (range_vision + (range_vision * coeff_radius_max))
 
-  set W_I 2.0
+  ifelse Interaction [
+    set W_I 2.0
+  ][
+    set W_I 0.0
+  ]
+
   set W_R 2.0
   set W_C 0.5
-  set W_W 0.0
+  ifelse Witness [
+    set W_W 1.0
+  ][
+    set W_W 0.0
+  ]
 
   set nbVoisin 2
 
@@ -365,6 +374,7 @@ to go
 
   ;transaction avec un provider
   ask consumers with [length listProvider != 0][
+    reset-timer
     let idProvider 0
 
     ;si plusieur provider son dispo
@@ -375,7 +385,7 @@ to go
     ]
 
     makeTransaction idProvider
-
+    show timer
   ]
   set utility-IT mean [utility] of consumers with [length listProvider != 0]
 
@@ -447,7 +457,7 @@ to-report selectProvider
   ]
 
   ;choix du provider en fonction de la temperature
-  let err_profit exp ( best_trust_value * 10 * temperature )
+  let err_profit exp ( best_trust_value * 10 * temperature)
 
   let err_explore exp ( utility_mean * temperature )
 
@@ -625,8 +635,6 @@ to-report getListTransaction-W [id_provider]
   ]
 
   report listTransaction
-
-
 end
 
 ;trie la liste des consumers en fonction de la distance avec le provider
@@ -635,9 +643,6 @@ to-report best_neighbors [idConsumer idProvider]
   let V sort-by [
     [a b] -> (distance_sphere turtle a turtle idProvider) >= distance_sphere turtle b turtle idProvider
   ] [listConsumer] of turtle idConsumer
-  show V
- show idConsumer
-  show [listConsumer] of turtle idConsumer
 
   report list item 0 V item 1 V
 end
@@ -764,7 +769,7 @@ BUTTON
 143
 NIL
 go
-T
+NIL
 1
 T
 OBSERVER
@@ -783,7 +788,7 @@ nbConsumer
 nbConsumer
 0
 500
-500.0
+29.0
 1
 1
 NIL
@@ -798,7 +803,7 @@ nbProvider
 nbProvider
 0
 100
-100.0
+11.0
 1
 1
 NIL
@@ -813,7 +818,7 @@ range_vision
 range_vision
 0
 1000
-600.0
+590.0
 5
 1
 NIL
@@ -868,6 +873,28 @@ coeff_radius_max
 1
 NIL
 HORIZONTAL
+
+SWITCH
+863
+157
+976
+190
+Witness
+Witness
+1
+1
+-1000
+
+SWITCH
+863
+208
+998
+241
+Interaction
+Interaction
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
