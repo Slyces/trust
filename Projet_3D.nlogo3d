@@ -374,7 +374,6 @@ to go
 
   ;transaction avec un provider
   ask consumers with [length listProvider != 0][
-    reset-timer
     let idProvider 0
 
     ;si plusieur provider son dispo
@@ -385,31 +384,9 @@ to go
     ]
 
     makeTransaction idProvider
-    show timer
   ]
   set utility-IT mean [utility] of consumers with [length listProvider != 0]
 
-
-
-  ;tue des agents
-  ask n-of round (nbProvider / 50) consumers [
-    die
-  ]
-
-  ;créé des agents
-  create-consumers round (nbProvider / 50) [
-    tilt-up asin (1.0 - random-float 2)
-    jump range_circle
-
-    set color red
-    set ratingData []
-    set listProvider []
-    let temp []
-    ask providers with [distance_sphere self myself <= range_max] [
-      set temp lput who temp
-    ]
-    set listProvider temp
-  ]
 
   tick
 end
@@ -603,6 +580,7 @@ end
 
 to-report getListTransaction-W [id_provider]
 
+
   let visited []
   let listTransaction []
   let temp_listTransaction []
@@ -640,11 +618,23 @@ end
 ;trie la liste des consumers en fonction de la distance avec le provider
 to-report best_neighbors [idConsumer idProvider]
   ;trie la liste des consumers en fonction de la distance avec le provider
-  let V sort-by [
-    [a b] -> (distance_sphere turtle a turtle idProvider) >= distance_sphere turtle b turtle idProvider
-  ] [listConsumer] of turtle idConsumer
+  ifelse empty? [listConsumer] of turtle idConsumer [
+    report []
+  ][
+    let V []
+    let best []
+    set V sort-by [
+      [a b] -> (distance_sphere turtle a turtle idProvider) >= distance_sphere turtle b turtle idProvider
+    ] [listConsumer] of turtle idConsumer
 
-  report list item 0 V item 1 V
+    ;si la liste ne contient qu'un element
+    ifelse length [listConsumer] of turtle idConsumer < 2 [
+      set best lput item 0 V best
+    ][
+      set best list item 0 V item 1 V
+    ]
+    report best
+  ]
 end
 
 
@@ -713,6 +703,7 @@ to-report distance_sphere [a b]
   if temp > 1.0 [
     set temp 1.0
   ]
+
   report range_circle * acos (temp)
 end
 @#$#@#$#@
@@ -769,7 +760,7 @@ BUTTON
 143
 NIL
 go
-NIL
+T
 1
 T
 OBSERVER
@@ -788,7 +779,7 @@ nbConsumer
 nbConsumer
 0
 500
-29.0
+99.0
 1
 1
 NIL
@@ -803,7 +794,7 @@ nbProvider
 nbProvider
 0
 100
-11.0
+100.0
 1
 1
 NIL
@@ -881,7 +872,7 @@ SWITCH
 190
 Witness
 Witness
-1
+0
 1
 -1000
 
@@ -1243,6 +1234,35 @@ NetLogo 3D 6.0.4
 need-to-manually-make-preview-for-this-model
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="2"/>
+    <metric>utility-IT</metric>
+    <enumeratedValueSet variable="range_circle">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision">
+      <value value="590"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="coeff_radius_max">
+      <value value="0.8"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="true"/>
+    </enumeratedValueSet>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
