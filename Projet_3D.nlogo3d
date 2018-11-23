@@ -9,6 +9,8 @@ consumers-own [
   utility_sum
   utility_mean
   nbTransaction
+  temp_transaction
+  need_update
 ]
 providers-own [
   type_provider
@@ -40,8 +42,8 @@ globals [
   pl_worst
 
   nbVoisin ;nombre de voisin max pour witness
+  taille_list
 ]
-
 
 to setup
   clear-all
@@ -52,6 +54,7 @@ to setup
   set range_max round (range_vision * (1 + coeff_radius_max))
   set nbVoisin 2
   set historique 10
+  set taille_list []
 
   ; ---------------- Intervales de performance selon le type ----------------- ;
   set pl_perfect 10
@@ -77,6 +80,7 @@ to setup
     set ratingData []
     set listProvider []
     set listConsumer []
+    set need_update false
   ]
   ask consumers [
     ; crée la liste des voisins disponibles;
@@ -130,6 +134,8 @@ end
 
 to go
 
+  set taille_list []
+
   ;pour random
   let sumUtility []
   ask consumers with [length listProvider != 0][
@@ -160,6 +166,15 @@ to go
       set need_update false
       set max_certificate [0 0 -20 0]
     ]
+  ]
+
+  ;ajoute la transaction au consumer
+  ask consumers with [need_update][
+    set ratingData lput temp_transaction ratingData
+    if length ratingData > historique [
+      set ratingData but-first ratingData
+    ]
+    set need_update false
   ]
   tick
 end
@@ -235,6 +250,7 @@ to-report Trust [idProvider]
 
   if W_W != 0 [
     let list_transaction-W getListTransaction-W idProvider
+    set taille_list lput length list_transaction-W taille_list
     let trust-W trustFunction list_transaction-W false
     set w w + (W_W * item 1 trust-W)
     set wt wt + (W_W * item 1 trust-W * item 0 trust-W)
@@ -329,57 +345,76 @@ to-report getListTransaction-IT [consumer_C id_provider]
 end
 
 to-report getListTransaction-W [id_provider]
-
-
   let visited []
-  let listTransaction []
-  let temp_listTransaction []
-  let temp_V_next []
-  let V_next []
   let i 0
 
-  let V best_neighbors who id_provider
-  while [i < nbVoisin] [
+  let temp recurcive_transaction_W who id_provider visited i
+  if length temp > 10[
+    report n-of 10 temp
+  ]
+  report temp
+
+end
+
+to-report recurcive_transaction_W [id_consumer id_provider visited compteur]
+  let temp_listTransaction []
+  let listTransaction []
+
+  ifelse compteur < nbVoisin[
+    set compteur compteur + 1
+    let V best_neighbors id_consumer id_provider
+
     foreach V [ a ->    ;∀ v ∈ V:
       if member? a visited = false [  ;si v ∉ visited:
         set visited fput a visited      ;visited.add(v)
         set temp_listTransaction (getListTransaction-IT (turtle a) id_provider)      ;RI_v = R_I(v, b)
-        ifelse empty? temp_listTransaction [
-          set temp_V_next best_neighbors a id_provider  ;merge(V_next, best_neighbors(v, b))
-          foreach temp_V_next [x ->
-            set V_next fput x V_next
-          ]
-        ][
-          foreach temp_listTransaction [x ->
-            set listTransaction fput x listTransaction  ;merge(R, RI_v)
-          ]
+        if empty? temp_listTransaction [
+          set temp_listTransaction recurcive_transaction_W a id_provider visited compteur
+        ]
+
+        foreach temp_listTransaction [x ->
+          set listTransaction fput x listTransaction  ;merge(R, RI_v)
         ]
       ]
     ]
-    set V V_next
-    set V_next []
-    set i i + 1
+    report listTransaction
+  ][
+    report []
   ]
-  report listTransaction
 end
-
 ;trie la liste des consumers en fonction de la distance avec le provider
 to-report best_neighbors [idConsumer idProvider]
   ;trie la liste des consumers en fonction de la distance avec le provider
   ifelse empty? [listConsumer] of turtle idConsumer [
     report []
   ][
+    let temp 0
     let V []
     let best []
-    set V sort-by [
-      [a b] -> (distance_sphere turtle a turtle idProvider) >= distance_sphere turtle b turtle idProvider
-    ] [listConsumer] of turtle idConsumer
+    let id_best1 -1
+    let id_best2 -1
+    let best1 1000
+    let best2 1000
+
+    foreach [listConsumer] of turtle idConsumer [ x ->
+      set temp (distance_sphere turtle x turtle idProvider)
+      if temp < best1 [
+        set best2 best1
+        set id_best2 id_best1
+        set best1 temp
+        set id_best1 x
+      ]
+      if temp < best2 [
+        set best2 temp
+        set id_best2 x
+      ]
+    ]
 
     ;si la liste ne contient qu'un element
-    ifelse length [listConsumer] of turtle idConsumer < 2 [
-      set best lput item 0 V best
+    ifelse id_best2 = -1 [
+      set best lput id_best1 best
     ][
-      set best list item 0 V item 1 V
+      set best list id_best1 id_best2
     ]
     report best
   ]
@@ -398,11 +433,9 @@ to makeTransaction [id_provider]
 
   let transaction (list id_provider service note ticks)
 
-  ;ajoute la transaction au consumer
-  set ratingData lput transaction ratingData
-  if length ratingData > historique [
-    set ratingData but-first ratingData
-  ]
+  set temp_transaction transaction
+  set need_update true
+
   ;donne la note au provider
   if Certificate [
     ask turtle id_provider [
@@ -544,7 +577,7 @@ nbConsumer
 nbConsumer
 0
 500
-500.0
+404.0
 1
 1
 NIL
@@ -637,7 +670,7 @@ SWITCH
 190
 Witness
 Witness
-1
+0
 1
 -1000
 
@@ -662,6 +695,17 @@ Certificate
 0
 1
 -1000
+
+MONITOR
+478
+284
+572
+329
+NIL
+max taille_list
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
