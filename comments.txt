@@ -1,0 +1,241 @@
+Constantes
+| N        | nombre de rounds              | 50           |
+| H        | history size                  | 10           |
+| λ        | recency scaling factor        | - 5 / ln(.5) |
+
+| η_BF     | branching factor              | 2            |
+| η_RL     | referral max length           | 5            |
+
+| α_min    | espace de l'activity level    | 0.25         |
+| α_max    |                               | 1.00         |
+
+| ug_min   | utilité minimale              | -10          |
+| ug_max   | ---   maximale                | -10          |
+
+| r_cons   | r_o consumer                  | ??           |
+| r_prov   | r_o provider                  | ??           |
+
+| PL_perf  | palier perfect                | 10           |
+| PL_good  | --   good                     | 10           |
+| PL_ok    | --   ok                       | 10           |
+| PL_bad   | --   bad                      | 10           |
+| PL_worst | --   worst                    | 10           |
+
+| Np       | #Providers                    | 100          |
+| Npg      | - Good                        | 10           |
+| Npo      | - Ordinary                    | 40           |
+| Npb      | - Bad                         | 5            |
+| Npi      | - Intermitent                 | 45           |
+| Nc       | #Consumer                     | 500          |
+
+| W_I      | Poids Interactions            | 2.0          |
+| W_R      |  ---  Roles                   | 2.0          |
+| W_W      |  ---  Witnesses               | 1.0          |
+| W_C      |  ---  Certificats             | 0.5          |
+
+| γ_I      | constante gamma               | - ln(.5)     |
+| γ_R      |                               | - ln(.5)     |
+| γ_W      |                               | - ln(.5)     |
+| γ_C      |                               | - ln(.5)     |
+
+| p_ppc    | %max nouveaux provider        | 2%           |
+| p_cpc    | %max    --    consumer        | 5%           |
+
+| p_plp    | proba qu'un provider bouge    | 10%          |
+| p_plc    | ---  -- -- consumer  ---      | 10%          |
+| ΔΦ_p     | borne déplacement provider    |  π / 20      |
+| ΔΦ_c     | ---      ----    consumer     |  π / 20      |
+
+| p_μc     | proba de changement de μ      | 10%          |
+| M        | Δμ max                        | 1.0          |
+| p_pr_sw  | proba de changement de profil | 2%           |
+
+Fonctions utilitaires
+  - U(a, b) : flotant aléatoire entre a et b inclus
+  - G(μ, σ) : variable aléatoire suivant une loi normale N(μ, σ)
+  - d(a, b) : distance euclidienne entre a et b (où a = (ax, ay, az))
+              simplification depuis la distance à la surface d'une sphère [@H]
+  - r_choice(L) : retourne un élément aléatoire de L
+  - rand(p) : retourne vrai avec une probabilité p
+  - register(L, T) : enregistre le tuple T dans la liste L
+      si L n'est pas plein
+         ajouter T
+      sinon
+         supprimer l'entrée (a, b, v, t) avec t minimal
+  - register_best(L, T) : enregistre le tuple T s'il est meilleur que
+                          le moins bon tuple de L
+      si T(v) > min(T'(v)) ∀ T' ∈ L
+         ajouter T à la place de T' le min
+  - curr_t(void) : récupérer le round en cours
+  - t(r) : renvoie le round où un rating a été créé
+  - near_providers(a) : donne les providers dispo pour l'agent a [@H]
+      retourner les providers p tq d(a, p) < a.r_o
+  - near_consumers(a) : donne les providers dispo pour l'agent a
+      retourner les consumers c tq d(a, c) < a.r_o
+  - T(t) : 1 / t : température pour l'exploration de Boltzmann [@H]
+
+
+Initialisation Consumer
+  - (x, y, z) aléatoire uniforme à la surface de la sphère [@H]
+  - r_o = r_cons
+  - α = U(α_min, α_max)
+  - ug_sum = 0 : somme des ug gagnés    depuis le début
+  - ug_n = 0   : nombre d'intéractions  ------ -- -----
+  - ug_mean(void): renvoie l'ug moyen dur toutes les transactions [@H]
+      return ug_sum / ug_n
+  - L = liste de taille H contentant des éléments de forme
+      (a, b, r, t) : a = agent consumer
+                     b = agent provider
+                     r = valeur de l'interaction
+                     t = temps en round
+      simplification depuis (a, b, c, i, r) car c unique et i non-utilisé [@H]
+  - val(ug) : valuation de l'UG pour a
+       return ug / 10
+
+Initialisation Provider
+  - Type parmi : (good, ordinary, bad, intermitent)
+  - L = liste de taille  H (voir consumer)
+  - case(type) :
+     good     : μ = U(PL_good, PL_perf) [@H]
+                σ = 1.0
+     ordinary : μ = U(PL_ok, PL_good)
+                σ = 1.0
+     bad      : μ = U(PL_worst, PL_ok)
+                σ = 2.0
+  - r_o = r_prov
+  - provide(void) : fonction
+     si type ∈ (good, ordinary, bad)
+         renvoie μ       (simplification de G(μ, σ) ) [@H]
+     sinon
+         renvoie U(PL_bad, PL_good)
+
+Interaction(a, b) : a consumer, b provider
+   ug = b.provide()   récupérer l'ug de b
+   a.ug_n += 1
+   a.ug_sum += ug
+   v = val(ug)
+   r = (a, b, v, current_round())
+   register(a.L, r)         | pseudocode, mais essayer de
+   register_best(b.L, r)    | prendre en compte la simultanéité
+
+Choix d'un provider : a consumer
+   P = near_providers(a)
+   T_max = -1
+   p_max = ∅
+   trusted = ∅
+   not_trusted = ∅
+   ∀ p ∈ P
+      T_p = Trust(a, p)
+      si T_p ≠ ∅
+         add(trusted, (p, T_p))
+         si T_p > T_max:
+             T_max = T_p
+             p_max = p
+      sinon
+         add(not_trusted, p)
+   err_profit  = exp( T_max / T(t) )
+   err_explore = exp( val(ug_mean()) / T(t) ) [@H]
+   p_expl = err_expl / (err_expl + err_profit)
+   if rand(p_expl) :
+       return r_choice(not_trusted)
+   else
+       return p_max
+
+@TODO : rechercher la valeur de T (Boltzmann exploration strategy)
+        on part sur du ( 1 / t )
+
+fonction ω_I, ω_W, ω_C: r un rating (a, b, c, i, v)
+  Δt(r) = curr_t - t(r)
+  return exp(- Δt / λ )
+
+function ω_R : r un rating (a, b, c, e, v)
+  return e
+
+Calcul de T_I, T_W, T_C: ensemble de rating R
+  Σω𝑣 = 0
+  Σω = 0
+  ∀ r ∈ R:
+      Σω𝑣 += ω_I(r) * r.𝑣
+      Σω = ω_I(r)
+  T_K = Σω𝑣 / Σω
+  ρ_RK = 1 - exp(-γ_K * Σω)
+  ∀ r ∈ R:
+      Σω𝑣𝑇 += ω_I(r) * |r.𝑣 - T_K|
+  ρ_DK = 1 - 0.5 * ( Σω𝑣𝑇  / Σω )
+  ρ_K = ρ_RK * ρ_DK
+  return (T_K, ρ_K)
+
+Calcul de Trust: consumer a, provider b
+  T_I, ρ_I = T_K(R_I(a, b))
+  T_W, ρ_W = T_K(R_W(a, b))
+  T_C, ρ_C = T_K(R_C(a, b))
+  T_R, ρ_R = T_R(R_R(a, b)) : cas particulier
+  ΣwT = W_I * ρ_I * T_I + W_W * ρ_W * T_W + W_C * ρ_C * T_C + W_R * ρ_R * T_R
+  Σw = W_I * ρ_I + W_W * ρ_W + W_C * ρ_C + W_R * ρ_R
+  T = ΣwT / Σ𝑤
+
+-----------
+Construction de R_I: consumer a, provider b
+  return { r | r.b = b, t(r) < curr_t }
+-----------
+Meilleurs voisins: consumer a, provider b
+  V = near_consumers(a)
+  sort(V, dist(x, b))
+  return η_BF meilleurs de V
+
+Construction de R_W: consumer a, provider b
+  visited = ∅
+  R = ∅ ;
+  V = best_neighbors(a, b)
+  nextV = ∅
+  pour n = 1 -> η_RL
+      ∀ v ∈ V:
+          si v ∉ visited:
+              visited.add(v)
+              RI_v = R_I(v, b)
+              si R_I ≠ ∅:
+                  merge(R, RI_v)
+              sinon:
+                  merge(V_next, best_neighbors(v, b))
+      V = V_next
+      V_next = ∅
+  report R
+-----------
+Construction de R_C: consumer a, provider b
+  return b.L
+-----------
+Construction de R_R: consumer a, provider b
+  ??
+
+Dynamisme de population :
+  Δprov = U(0, p_ppc)
+  retirer (Δprov * Np) random providers
+  ajouter (Δprov * Np) random providers (de même type ?) [@H]
+                                        (de même distribution ?) [@H]
+  Δcons = U(0, p_cpc)
+  retirer (Δcons * Nc) random providers
+  ajouter (Δcons * Nc) random providers (de même type ?) [@H]
+                                        (de même distribution ?) [@H]
+  ∀ p ∈ population(providers):
+      if rand(p_ps):
+          changer le profil de p
+          réinitialiser μ_𝑝, σ_𝑝
+      else if rand(p_μ𝑐): [@H] (else if)
+          Δμ = U(-M, +M)
+          p.μ = max(p.μ_min, min(p.μ_max, p.μ + Δ_μ) ) [@H]
+      if rand(p_plc):
+          Δθ = U(−ΔΦ, +ΔΦ)
+          Δφ = U(−ΔΦ, +ΔΦ)
+          p.θ += Δθ
+          p.φ += Δφ
+  ∀ c ∈ population(consumers):
+      if rand(p_clc):
+          Δθ = U(−ΔΦ, +ΔΦ)
+          Δφ = U(−ΔΦ, +ΔΦ)
+          c.θ += Δθ
+          c.φ += Δφ
+
+nombre d'agent constant
+proportion des catégories des provider page 139 on peut tirer sur une loi normale
+est ce qu'on doit faire mourir et naitre des providers ?
+

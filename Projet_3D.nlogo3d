@@ -1,238 +1,9 @@
-; Constantes
-; | N        | nombre de rounds              | 50           |
-; | H        | history size                  | 10           |
-; | λ        | recency scaling factor        | - 5 / ln(.5) |
-
-; | η_BF     | branching factor              | 2            |
-; | η_RL     | referral max length           | 5            |
-
-; | α_min    | espace de l'activity level    | 0.25         |
-; | α_max    |                               | 1.00         |
-
-; | ug_min   | utilité minimale              | -10          |
-; | ug_max   | ---   maximale                | -10          |
-
-; | r_cons   | r_o consumer                  | ??           |
-; | r_prov   | r_o provider                  | ??           |
-
-; | PL_perf  | palier perfect                | 10           |
-; | PL_good  | --   good                     | 10           |
-; | PL_ok    | --   ok                       | 10           |
-; | PL_bad   | --   bad                      | 10           |
-; | PL_worst | --   worst                    | 10           |
-
-; | Np       | #Providers                    | 100          |
-; | Npg      | - Good                        | 10           |
-; | Npo      | - Ordinary                    | 40           |
-; | Npb      | - Bad                         | 5            |
-; | Npi      | - Intermitent                 | 45           |
-; | Nc       | #Consumer                     | 500          |
-
-; | W_I      | Poids Interactions            | 2.0          |
-; | W_R      |  ---  Roles                   | 2.0          |
-; | W_W      |  ---  Witnesses               | 1.0          |
-; | W_C      |  ---  Certificats             | 0.5          |
-
-; | γ_I      | constante gamma               | - ln(.5)     |
-; | γ_R      |                               | - ln(.5)     |
-; | γ_W      |                               | - ln(.5)     |
-; | γ_C      |                               | - ln(.5)     |
-
-; | p_ppc    | %max nouveaux provider        | 2%           |
-; | p_cpc    | %max    --    consumer        | 5%           |
-
-; | p_plp    | proba qu'un provider bouge    | 10%          |
-; | p_plc    | ---  -- -- consumer  ---      | 10%          |
-; | ΔΦ_p     | borne déplacement provider    |  π / 20      |
-; | ΔΦ_c     | ---      ----    consumer     |  π / 20      |
-
-; | p_μc     | proba de changement de μ      | 10%          |
-; | M        | Δμ max                        | 1.0          |
-; | p_pr_sw  | proba de changement de profil | 2%           |
-;
-; Fonctions utilitaires
-;   - U(a, b) : flotant aléatoire entre a et b inclus
-;   - G(μ, σ) : variable aléatoire suivant une loi normale N(μ, σ)
-;   - d(a, b) : distance à la surface d'une sphère [@H]
-;   - r_choice(L) : retourne un élément aléatoire de L
-;   - rand(p) : retourne vrai avec une probabilité p
-;   - register(L, T) : enregistre le tuple T dans la liste L
-;       si L n'est pas plein
-;          ajouter T
-;       sinon
-;          supprimer l'entrée (a, b, v, t) avec t minimal
-;   - register_best(L, T) : enregistre le tuple T s'il est meilleur que
-;                           le moins bon tuple de L
-;       si T(v) > min(T'(v)) ∀ T' ∈ L
-;          ajouter T à la place de T' le min
-;   - curr_t(void) : récupérer le round en cours
-;   - t(r) : renvoie le round où un rating a été créé
-;   - near_providers(a) : donne les providers dispo pour l'agent a [@H]
-;       retourner les providers p tq d(a, p) < a.r_o
-;   - near_consumers(a) : donne les providers dispo pour l'agent a
-;       retourner les consumers c tq d(a, c) < a.r_o
-;   - T(t) : 1 / t : température pour l'exploration de Boltzmann [@H]
-;
-;
-; Initialisation Consumer
-;   - (x, y, z) aléatoire uniforme à la surface de la sphère [@H]
-;   - r_o = r_cons
-;   - α = U(α_min, α_max)
-;   - ug_sum = 0 : somme des ug gagnés    depuis le début
-;   - ug_n = 0   : nombre d'intéractions  ------ -- -----
-;   - ug_mean(void): renvoie l'ug moyen dur toutes les transactions [@H]
-;       return ug_sum / ug_n
-;   - L = liste de taille H contentant des éléments de forme
-;       (a, b, r, t) : a = agent consumer
-;                      b = agent provider
-;                      r = valeur de l'interaction
-;                      t = temps en round
-;       simplification depuis (a, b, c, i, r) car c unique et i non-utilisé [@H]
-;   - val(ug) : valuation de l'UG pour a
-;        return ug / 10
-;
-; Initialisation Provider
-;   - Type parmi : (good, ordinary, bad, intermitent)
-;   - L = liste de taille  H (voir consumer)
-;   - case(type) :
-;      good     : μ = U(PL_good, PL_perf) [@H]
-;                 σ = 1.0
-;      ordinary : μ = U(PL_ok, PL_good)
-;                 σ = 1.0
-;      bad      : μ = U(PL_worst, PL_ok)
-;                 σ = 2.0
-;   - r_o = r_prov
-;   - provide(void) : fonction
-;      si type ∈ (good, ordinary, bad)
-;          renvoie μ       (simplification de G(μ, σ) ) [@H]
-;      sinon
-;          renvoie U(PL_bad, PL_good)
-;
-; Interaction(a, b) : a consumer, b provider
-;    ug = b.provide()   récupérer l'ug de b
-;    a.ug_n += 1
-;    a.ug_sum += ug
-;    v = val(ug)
-;    r = (a, b, v, current_round())
-;    register(a.L, r)         | pseudocode, mais essayer de
-;    register_best(b.L, r)    | prendre en compte la simultanéité
-;
-; Choix d'un provider : a consumer
-;    P = near_providers(a)
-;    T_max = -1
-;    p_max = ∅
-;    trusted = ∅
-;    not_trusted = ∅
-;    ∀ p ∈ P
-;       T_p = Trust(a, p)
-;       si T_p ≠ ∅
-;          add(trusted, (p, T_p))
-;          si T_p > T_max:
-;              T_max = T_p
-;              p_max = p
-;       sinon
-;          add(not_trusted, p)
-;    err_profit  = exp( T_max / T(t) )
-;    err_explore = exp( val(ug_mean()) / T(t) ) [@H]
-;    p_expl = err_expl / (err_expl + err_profit)
-;    if rand(p_expl) :
-;        return r_choice(not_trusted)
-;    else
-;        return p_max
-;
-; @TODO : rechercher la valeur de T (Boltzmann exploration strategy)
-;         on part sur du ( 1 / t )
-;
-; fonction ω_I, ω_W, ω_C: r un rating (a, b, c, i, v)
-;   Δt(r) = curr_t - t(r)
-;   return exp(- Δt / λ )
-;
-; function ω_R : r un rating (a, b, c, e, v)
-;   return e
-;
-; Calcul de T_I, T_W, T_C: ensemble de rating R
-;   Σω𝑣 = 0
-;   Σω = 0
-;   ∀ r ∈ R:
-;       Σω𝑣 += ω_I(r) * r.𝑣
-;       Σω = ω_I(r)
-;   T_K = Σω𝑣 / Σω
-;   ρ_RK = 1 - exp(-γ_K * Σω)
-;   ∀ r ∈ R:
-;       Σω𝑣𝑇 += ω_I(r) * |r.𝑣 - T_K|
-;   ρ_DK = 1 - 0.5 * ( Σω𝑣𝑇  / Σω )
-;   ρ_K = ρ_RK * ρ_DK
-;   return (T_K, ρ_K)
-;
-; -----------
-; Construction de R_I: consumer a, provider b
-;   return { r | r.b = b, t(r) < curr_t }
-; -----------
-; Meilleurs voisins: consumer a, provider b
-;   V = near_consumers(a)
-;   sort(V, dist(x, b))
-;   return η_BF meilleurs de V
-;   
-; Construction de R_W: consumer a, provider b
-;   visited = ∅
-;   R = ∅
-;   V = best_neighbors(a, b)
-;   nextV = ∅
-;   pour n = 1 -> η_RL
-;       ∀ v ∈ V:
-;           si v ∉ visited:
-;               visited.add(v)
-;               RI_v = R_I(v, b)
-;               si R_I ≠ ∅:
-;                   merge(R, RI_v)
-;               sinon:
-;                   merge(V_next, best_neighbors(v, b))
-;       V = V_next
-;       V_next = ∅
-; -----------
-; Construction de R_C: consumer a, provider b
-;   return b.L
-; -----------
-; Construction de R_R: consumer a, provider b
-;   ??
-;
-; Dynamisme de population :
-;   Δprov = U(0, p_ppc)
-;   retirer (Δprov * Np) random providers
-;   ajouter (Δprov * Np) random providers (de même type ?) [@H]
-;                                         (de même distribution ?)
-;   Δcons = U(0, p_cpc)
-;   retirer (Δcons * Nc) random providers
-;   ajouter (Δcons * Nc) random providers (de même type ?)
-;                                         (de même distribution ?)
-;   ∀ p ∈ population(providers):
-;       if rand(p_ps):
-;           changer le profil de p
-;           réinitialiser μ_𝑝, σ_𝑝
-;       else if rand(p_μ𝑐): [@H] (else if)
-;           Δμ = U(-M, +M)
-;           p.μ = max(p.μ_min, min(p.μ_max, p.μ + Δ_μ) ) [@H]
-;       if rand(p_plc):
-;           Δθ = U(−ΔΦ, +ΔΦ)
-;           Δφ = U(−ΔΦ, +ΔΦ)
-;           p.θ += Δθ
-;           p.φ += Δφ
-;   ∀ c ∈ population(consumers):
-;       if rand(p_clc):
-;           Δθ = U(−ΔΦ, +ΔΦ)
-;           Δφ = U(−ΔΦ, +ΔΦ)
-;           c.θ += Δθ
-;           c.φ += Δφ
-;
-; nombre d'agent constant
-; proportion des catégories des provider page 139 on peut tirer sur une loi normale
-; est ce qu'on doit faire mourir et naitre des providers ?
-
 breed [providers provider]
 breed [consumers consumer]
 
 consumers-own [
   listProvider
+  listConsumer
   ratingData   ;liste des transactions que le consumer a effectué max 10
   utility
   utility_sum
@@ -240,19 +11,30 @@ consumers-own [
   nbTransaction
 ]
 providers-own [
-  mean_provider
   type_provider
+  mu
+  sigma
 ]
 
-
-
 globals [
-  idTransaction
   service
   utility-IT
   utility-RANDOM
 
   range_max
+
+  W_I
+  W_R
+  W_C
+  W_W
+
+  pl_perfect
+  pl_good
+  pl_ok
+  pl_bad
+  pl_worst
+
+  nbVoisin ;nombre de voisin max pour witness
 ]
 
 
@@ -260,112 +42,110 @@ globals [
 to setup
   clear-all
   reset-ticks
+  ; ------------------------------- constantes ------------------------------- ;
   set service "quality"
-  set range_max round (range_provider + (range_provider * coeff_radius_max))
+  ;set range_max round (range_vision);
+  set range_max round (range_vision * (1 + coeff_radius_max))
+  set nbVoisin 2
 
+  ; ---------------- Intervales de performance selon le type ----------------- ;
+  set pl_perfect 10
+  set pl_good 5
+  set pl_ok 0
+  set pl_bad -5
+  set pl_worst -10
+
+  ; ------------------------- Poids des composantes -------------------------- ;
+  set W_R 2.0
+  set W_C 0.5
+  ifelse Interaction [ set W_I 2.0 ][ set W_I 0.0 ]
+  ifelse Witness [ set W_W 1.0 ][ set W_W 0.0 ]
+
+  ; ------------------------ Initialisation consumer ------------------------- ;
   create-consumers nbConsumer [
+    ; Projection sur la sphère
     tilt-up asin (1.0 - random-float 2)
     jump range_circle
   ]
-
-    create-providers nbProvider [
-    tilt-up asin (1.0 - random-float 2)
-    jump range_circle
-  ]
-
-
-    ask consumers [
+  ask consumers [
     set color red
     set ratingData []
     set listProvider []
+    set listConsumer []
   ]
-
+  ask consumers [
+    ; crée la liste des voisins disponibles;
+    ask consumers with [distance_sphere self myself <= range_vision][
+      set listConsumer lput [who] of myself listConsumer
+    ]
+    set listConsumer remove [who] of self listConsumer
+  ]
+  ; ------------------------ Initialisation providers ------------------------ ;
+  create-providers nbProvider [
+    tilt-up asin (1.0 - random-float 2)
+    jump range_circle
+  ]
   ask providers [
     set color blue
     set type_provider 0
 
     ;donne l'id du provider aux consumers
-    ask consumers with [distance myself <= range_max] [
+    ask consumers with [distance_sphere self myself <= range_max] [
       set listProvider lput [who] of myself listProvider
     ]
   ]
 
-
-  ;instancie les types de providers
+  ; --------------------------- Types de providers --------------------------- ;
+  ; Good
   ask n-of round (nbProvider / 10) providers with [type_provider = 0][
     set type_provider "good"
+    set mu random_uniform pl_good pl_perfect
+    set sigma 1.0
   ]
-
+  ; Odinary
   ask n-of round (nbProvider / 2.5) providers with [type_provider = 0][
     set type_provider "ordinary"
+    set mu random_uniform pl_ok pl_good
+    set sigma 1.0
   ]
-
+  ; Bad
+  ask n-of round (nbProvider / 20) providers[
+    set type_provider "bad"
+    set mu random_uniform pl_worst pl_ok
+    set sigma 2.0
+  ]
+  ; Intermitent
   ask n-of round (nbProvider / 2.22) providers with [type_provider = 0][
     set type_provider "intermittent"
   ]
-  ask n-of round (nbProvider / 20) providers[
-    set type_provider "bad"
-  ]
-
-  ;donne la moyenne du provider
-  ask providers [
-    giveMean
-  ]
-
-
-  set idTransaction (nbProvider + nbConsumer + 1)
 end
 
 to go
 
   ;pour random
+  let sumUtility []
   ask consumers with [length listProvider != 0][
-    let idProvider one-of listProvider
+    let idProvider one-of listProvider  ;random selection
 
-    ;random selection
-    makeTransaction idProvider
-    ;supprime la transaction
-    set ratingData remove-item (length ratingData - 1) ratingData
-
+    set sumUtility lput give_utility idProvider sumUtility
   ]
+  set utility-RANDOM mean sumUtility
 
-  set utility-RANDOM mean [utility] of consumers with [length listProvider != 0]
-
-  ;pour IT
+  ;transaction avec un provider
   ask consumers with [length listProvider != 0][
-    let idProvider one-of listProvider
+    let idProvider 0
 
     ;si plusieur provider son dispo
-    if length listProvider != 1 [
+    ifelse length listProvider != 1 [
       set idProvider selectProvider
+    ][
+      set idProvider one-of listProvider
     ]
 
     makeTransaction idProvider
-
   ]
   set utility-IT mean [utility] of consumers with [length listProvider != 0]
 
-
-
-  ;tue des agents
-  ask n-of round (nbProvider / 50) consumers [
-    die
-  ]
-
-  ;créé des agents
-  create-consumers round (nbProvider / 50) [
-    tilt-up asin (1.0 - random-float 2)
-    jump range_circle
-
-    set color red
-    set ratingData []
-    set listProvider []
-    let temp []
-    ask providers with [distance myself <= range_max] [
-      set temp lput who temp
-    ]
-    set listProvider temp
-  ]
 
   tick
 end
@@ -373,77 +153,112 @@ end
 
 ;selectionne le provider
 to-report selectProvider
-  let trustValues []
+  ; let trustValues []
   let selected 0
+  let temperature ln (ticks  + 1)
 
-  ;pour IT
+  ; added
+  let list_not_trusted []
+  let best_provider_id (-1)
+  let best_trust_value (-2) ; valeur < min(trust_value)
+
   ;pour chaque provider du client
   foreach listProvider [
     idProvider ->
-    let list_transaction getListTransaction-IT idProvider
-    set trustValues lput (list (trustFunction list_transaction) idProvider) trustValues
+    ;set trustValues lput (list (Trust idProvider) idProvider) trustValues
+    let trust_value Trust idProvider
+    ifelse trust_value != 5 [
+      if trust_value > best_trust_value [
+        set best_provider_id idProvider
+        set best_trust_value trust_value
+      ]
+    ][
+      set list_not_trusted fput idProvider list_not_trusted
+    ]
+  ]
+
+
+  ; let list_trusted filter [ i -> item 0 i != 5] trustValues
+  ;classe décroissant
+  ; set list_trusted sort-by [ [a b] -> item 0 a >= item 0 b] list_trusted
+
+  ; let list_not_trusted filter [ i -> item 0 i = 5] trustValues
+
+  ; if empty? list_trusted [
+  if best_trust_value = (-2) [
+    report one-of list_not_trusted
+  ]
+  if empty? list_not_trusted [
+      report best_provider_id
   ]
 
   ;choix du provider en fonction de la temperature
+  let err_profit exp ( best_trust_value * 10 * temperature)
 
-  let list_trusted filter [ i -> item 0 i != 0] trustValues
-  ;classe décroissant
-  set list_trusted sort-by [ [a b] -> item 0 a >= item 0 b] list_trusted
+  let err_explore exp ( utility_mean * temperature )
 
-  let list_not_trusted filter [ i -> item 0 i = 0] trustValues
-
-  if empty? list_trusted [
-    set selected item 1 one-of list_not_trusted
-    report selected
-  ]
-  if empty? list_not_trusted [
-      set selected item 1 item 0 list_trusted
-      report selected
-  ]
-
-  let err_profit exp ( (item 0 item 0 list_trusted) * ln ticks)
-
-  let err_explore exp ( (utility_mean / 10 ) * ln ticks)
-
-  let p_expl err_explore / ( err_explore + err_profit)
+  let p_expl err_explore / ( err_explore + err_profit )
   ifelse random-float 1 < p_expl [
-    set selected item 1 one-of list_not_trusted
+    set selected one-of list_not_trusted
   ][
-    set selected item 1 item 0 list_trusted
+    set selected best_provider_id
   ]
 
   report selected
 
- ; err_profit  = exp( T_max / T(t) )
-;    err_explore = exp( val(ug_mean()) / T(t))
-;    p_expl = err_expl / (err_expl + err_profit)
-;    if rand(p_expl) :
-;        return r_choice(LNT)
-;    else
-;        return p_max
+end
 
+to-report Trust [idProvider]
 
+  let wt 0
+  let w 0
+
+  if W_I != 0 [
+    let list_transaction-IT getListTransaction-IT self idProvider
+    let trust-IT trustFunction list_transaction-IT false
+    set w w + (W_I * item 1 trust-IT)
+    set wt wt + (W_I * item 1 trust-IT * item 0 trust-IT)
+  ]
+
+  if W_W != 0 [
+    let list_transaction-W getListTransaction-W idProvider
+    let trust-W trustFunction list_transaction-W false
+    set w w + (W_W * item 1 trust-W)
+    set wt wt + (W_W * item 1 trust-W * item 0 trust-W)
+  ]
+
+  if W_C != 0 []
+
+  if W_R != 0 []
+
+  let R_T w / (W_I + W_W + W_C + W_R)
+
+  if R_T = 0 [
+    report 5
+  ]
+
+  let T wt / w
+
+  report T
 
 end
 
-to-report trustFunction [list_transaction]
+to-report trustFunction [list_transaction bool_roleBased]
 
   let up 0
   let down 0
-  let wieght 0
-
-  let WK 2.0
+  let weight 0
 
 
   ;TK
   ifelse length list_transaction = 0 [
-    report 0
+    report list 5 0
   ][
     foreach list_transaction [
       transaction ->
-      set wieght giveWieght-IT transaction
-      set up (up + wieght * item 3 transaction)
-      set down (down + wieght)
+      set weight giveWeight transaction bool_roleBased
+      set up (up + weight * item 2 transaction)
+      set down (down + weight)
     ]
     let TK up / down
 
@@ -455,61 +270,46 @@ to-report trustFunction [list_transaction]
     ;PDK
     set up 0
     set down 0
-    set wieght 0
+    set weight 0
 
     foreach list_transaction [
       transaction ->
-      set wieght giveWieght-IT transaction
-      set down (down + wieght)
-      set up (down * abs (item 3 transaction - TK))
+      set weight giveWeight transaction bool_roleBased
+      set down (down + weight)
+      set up (down * abs (item 2 transaction - TK))
     ]
     let PDK (1 - (0.5 * (up / down)))
 
     let PK PRK * PDK
 
-    let omega_K WK * PK
-
-    report (omega_K * TK) / omega_K
+    ;renvoi une liste
+    report list TK PK
 
   ]
 end
 
-to-report giveWieght-IT [transaction]
-  let time ticks - item 4 transaction
-  let lambda (- (5 / ln 0.5))
+to-report giveWeight [transaction bool_roleBased]
+  ifelse bool_roleBased = false [
+    let time ticks - item 3 transaction
+    let lambda (- (5 / ln 0.5))
 
-  report exp ( - (time / lambda))
+    report exp ( - (time / lambda))
+  ][]
 end
 
 
 to giveMean
-  let pl_perfect 10
-  let pl_good 5
-  let pl_ok 0
-  let pl_bad -5
-  let pl_worst -10
 
-  ifelse type_provider = "good" [
-    set mean_provider mean (list pl_perfect pl_good)
-  ][
-    ifelse type_provider = "ordinary" [
-      set mean_provider mean (list pl_ok pl_good)
-    ][
-      ifelse type_provider = "bad" [
-        set mean_provider pl_bad
-      ][
-        set mean_provider pl_ok
-  ]]]
 end
 
 
-to-report getListTransaction-IT [id_provider]
+to-report getListTransaction-IT [consumer_C id_provider]
   let listTransaction []
   ;pour chaque transaction de l'agent
-  foreach ratingData [
+  foreach [ratingData] of consumer_C [
     transaction ->
     ;si le provider est le même que celui actuellement
-    if item 1 transaction = id_provider and item 2 transaction = service[
+    if item 0 transaction = id_provider and item 1 transaction = service[
       ;on ajoute la transaction dans la liste
       set listTransaction lput transaction listTransaction
     ]
@@ -517,10 +317,68 @@ to-report getListTransaction-IT [id_provider]
   report listTransaction
 end
 
+to-report getListTransaction-W [id_provider]
+
+
+  let visited []
+  let listTransaction []
+  let temp_listTransaction []
+  let temp_V_next []
+  let V_next []
+  let i 0
+
+  let V best_neighbors who id_provider
+  while [i < nbVoisin] [
+    foreach V [ a ->    ;∀ v ∈ V:
+      if member? a visited = false [  ;si v ∉ visited:
+        set visited fput a visited      ;visited.add(v)
+        set temp_listTransaction (getListTransaction-IT (turtle a) id_provider)      ;RI_v = R_I(v, b)
+        ifelse empty? temp_listTransaction [
+          set temp_V_next best_neighbors a id_provider  ;merge(V_next, best_neighbors(v, b))
+          foreach temp_V_next [x ->
+            set V_next fput x V_next
+          ]
+        ][
+          foreach temp_listTransaction [x ->
+            set listTransaction fput x listTransaction  ;merge(R, RI_v)
+          ]
+        ]
+
+      ]
+    ]
+    set V V_next
+    set V_next []
+    set i i + 1
+  ]
+
+  report listTransaction
+end
+
+;trie la liste des consumers en fonction de la distance avec le provider
+to-report best_neighbors [idConsumer idProvider]
+  ;trie la liste des consumers en fonction de la distance avec le provider
+  ifelse empty? [listConsumer] of turtle idConsumer [
+    report []
+  ][
+    let V []
+    let best []
+    set V sort-by [
+      [a b] -> (distance_sphere turtle a turtle idProvider) >= distance_sphere turtle b turtle idProvider
+    ] [listConsumer] of turtle idConsumer
+
+    ;si la liste ne contient qu'un element
+    ifelse length [listConsumer] of turtle idConsumer < 2 [
+      set best lput item 0 V best
+    ][
+      set best list item 0 V item 1 V
+    ]
+    report best
+  ]
+end
+
 
 to makeTransaction [id_provider]
-
-  giveUtility id_provider
+  let temp give_utility id_provider
 
   ;normalize l'utilité
   let note utility / 10
@@ -530,9 +388,7 @@ to makeTransaction [id_provider]
   set nbTransaction nbTransaction + 1
   set utility_mean utility_sum / nbTransaction
 
-
-  let transaction (list idTransaction id_provider service note ticks)
-  set idTransaction idTransaction + 1
+  let transaction (list id_provider service note ticks)
 
   ;ajoute la transaction au consumer
   set ratingData lput transaction ratingData
@@ -541,42 +397,55 @@ to makeTransaction [id_provider]
   ]
 end
 
-to giveUtility [id_provider]
+to-report give_utility [id_provider]
   let distance_P 0
   let mean_P 0
   let type_P 0
+  let sigma_P 0
 
   ;distance entre le consumer et le provider
-  ask providers with [who = id_provider][
-    set distance_P distance myself
-    set mean_P mean_provider
+  ask turtle id_provider [
+    if range_max > range_vision [ set distance_P distance_sphere self myself ]
+    set mean_P mu
     set type_P type_provider
+    set sigma_P sigma
   ]
 
-
-  ifelse type_P = "good" [
-    set utility random-normal mean_P 1.0
+  ifelse type_P = "intermittent" [
+    ;random entre -5 et 5
+    set utility (random-float 10) - 5
   ][
-    ifelse type_P = "ordinary" [
-      set utility random-normal mean_P 2.0
-    ][
-      ifelse type_P = "bad" [
-        set utility random-normal mean_P 2.0
-      ][
-        ;random entre -5 et 5
-        set utility (random-float 10) - 5
-  ]]]
-
-  ;dégradation linéaire de la distance
-  let coeff (- 10 - utility) / (range_max - range_provider)
-
-  if distance_P > range_provider [
-    set utility utility + (coeff * (distance_P - range_provider))
-  ]
-  if distance_P = range_max [
-    set utility -10
+    set utility random-normal mean_P sigma_P
   ]
 
+  ; ---------- dégradation linéaire de l'utilité liée à la distance ---------- ;
+  if range_max > range_vision [
+    ;dégradation linéaire de la distance
+    let coeff (- 10 - utility) / (range_max - range_vision)
+
+    if distance_P > range_vision [
+      set utility utility + (coeff * (distance_P - range_vision))
+    ]
+    if distance_P >= range_max [
+      set utility -10
+    ]
+  ]
+  if utility < -10 [ report -10 ]
+  if utility > 10 [ report 10 ]
+  report utility
+end
+
+to-report random_uniform [min-extreme max-extreme]
+  report random-float (max-extreme - min-extreme) + min-extreme
+end
+
+to-report distance_sphere [a b]
+  let temp ((([xcor] of a * [xcor] of b) + ([ycor] of a * [ycor] of b) + ([zcor] of a * [zcor] of b)) / (range_circle * range_circle))
+  if temp > 1.0 [
+    set temp 1.0
+  ]
+
+  report range_circle * acos (temp)
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -651,7 +520,7 @@ nbConsumer
 nbConsumer
 0
 500
-500.0
+400.0
 1
 1
 NIL
@@ -677,12 +546,12 @@ SLIDER
 303
 191
 336
-range_provider
-range_provider
+range_vision
+range_vision
 0
-20
-10.0
-1
+1000
+590.0
+5
 1
 NIL
 HORIZONTAL
@@ -737,23 +606,27 @@ coeff_radius_max
 NIL
 HORIZONTAL
 
-PLOT
-963
-86
-1163
-236
-plot 1
-NIL
-NIL
-0.0
-10.0
-0.0
-1.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot ln ticks"
+SWITCH
+863
+157
+976
+190
+Witness
+Witness
+0
+1
+-1000
+
+SWITCH
+863
+208
+998
+241
+Interaction
+Interaction
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1102,6 +975,35 @@ NetLogo 3D 6.0.4
 need-to-manually-make-preview-for-this-model
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="2"/>
+    <metric>utility-IT</metric>
+    <enumeratedValueSet variable="range_circle">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision">
+      <value value="590"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="coeff_radius_max">
+      <value value="0.8"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="true"/>
+    </enumeratedValueSet>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
