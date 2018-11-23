@@ -53,8 +53,7 @@
 ; Fonctions utilitaires
 ;   - U(a, b) : flotant aléatoire entre a et b inclus
 ;   - G(μ, σ) : variable aléatoire suivant une loi normale N(μ, σ)
-;   - d(a, b) : distance euclidienne entre a et b (où a = (ax, ay, az))
-;               simplification depuis la distance à la surface d'une sphère [@H]
+;   - d(a, b) : distance à la surface d'une sphère [@H]
 ;   - r_choice(L) : retourne un élément aléatoire de L
 ;   - rand(p) : retourne vrai avec une probabilité p
 ;   - register(L, T) : enregistre le tuple T dans la liste L
@@ -201,11 +200,11 @@
 ;   Δprov = U(0, p_ppc)
 ;   retirer (Δprov * Np) random providers
 ;   ajouter (Δprov * Np) random providers (de même type ?) [@H]
-;                                         (de même distribution ?) [@H]
+;                                         (de même distribution ?)
 ;   Δcons = U(0, p_cpc)
 ;   retirer (Δcons * Nc) random providers
-;   ajouter (Δcons * Nc) random providers (de même type ?) [@H]
-;                                         (de même distribution ?) [@H]
+;   ajouter (Δcons * Nc) random providers (de même type ?)
+;                                         (de même distribution ?)
 ;   ∀ p ∈ population(providers):
 ;       if rand(p_ps):
 ;           changer le profil de p

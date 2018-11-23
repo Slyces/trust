@@ -33,6 +33,12 @@
 \clearpage
 
 % ================================================================================ %
+\section{Hypothèses d'implémentation}%
+\label{sec:hypotheses_d_implementation}
+
+\input{hypotheses.tex}
+
+% ================================================================================ %
 \section{Pseudocode}
 
 \begin{pseudocode}{Initialisation : Consumer}
@@ -152,92 +158,6 @@ Les auteurs proposent un modèle de confiance permettant à un agent de juger de
 % ================================================================================ %
 \section{Etudes progressive du modèle FIRE}
 \label{sec:etude-progressive}
-
-\smalltitle{Hypothèses d'implémentation}
-
-\begin{hypothese}{Valeur d'un rating}
-\label{hyp:rating}
-
-\begin{blockquote}{137}
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris dignissim, lectus vitae viverra dignissim, massa ante faucibus mi, quis luctus lorem ligula a nunc. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Etiam consectetur viverra urna. Donec interdum sollicitudin hendrerit. Etiam id felis euismod, tristique leo a, fringilla odio. Nullam vulputate risus id viverra pellentesque.
-\end{blockquote}
-
-Dans le modèle, après toute intéraction $i$ entre $a$ et $b$, l'agent $a$ crée un rating $r$ pour chacun des critères $c$ évaluables dans cette interaction. Ce rating prend la forme d'un tuple $r = (a, b, c, i, v)$ où $v \in [-1,1]$ est la valeur que $a$ donne à $b$ pour le critère $c$ lors de l'interaction $i$.
-Cependant, il n'est nulle part précisé comment l'agent $a$ détermine cette valeur. Nous savons que dans le \emph{testbed} fourni par l'article, $a$ reçoit une utilité \UG $\in [-10,10]$. Nous ferons donc les hypothèses suivantes :
-\begin{itemize}
-    \item On peut exprimer $v$ comme une fonction de l'\UG\ obtenue par $a$ lors de cette interaction, et cette fonction est propre à $a$ :
-    $$ v = \varphi_a(\text{\UG}) $$
-    \item Au vu du manque d'informations, on fera l'hypothèse que cette fonction normaliser \UG\ dans l'intervalle de $v$, et qu'elle est la même pour chaque agent :
-    $$ \varphi_a(x) = \frac{x}{10}, \forall a $$
-\end{itemize}
-
-Cette hypothèse apporte même une autre opportunité d'amélioration au modèle : tous les agents n'ont pas une appréciation linéaire de l'utilité. De même, cette appréciation n'est pas toujours objective. Dans des situations réalistes, certaines personnes notent trop sévèrement, alors que d'autres peuvent être trop indulgentes. Il serait donc intéressant de doter les agents d'utilités non-linéaire dans un premier temps, et peut être par la suite de différencier certains profils d'agents pour intégrer ces disparités dans les notes des différents critères.
-\end{hypothese}
-
-\begin{hypothese}{Dégradation du service liée à la distance}
-
-L'article évoque une dégradation linéaire du service lorsque la distance entre les deux agents en interaction, $a$ et $b$, dépasse la portée opérationelle $r_o(b)$ de l'agent fournissant le service.\newline
-
-Cependant, les détails de cette dégradation linéaire ne sont pas donnés par l'article. Cette dégradation est donc une fonction de $x = d(a, b)$ la distance entre $a$ et $b$ qui modifie l'utilité $u$ fournie par l'interaction. On peut tout d'abord supposer :
-
-$$ f_{UG}(x)= 
-\begin{cases}
-    UG,                 & \text{si } x \leq r_o(b)\\
-    UG + \alpha * (x - r_o),  & \text{sinon}
-\end{cases} $$
-Avec $alpha < 0$ pour obtenir une dégradation.\\
-
-Cependant, il reste quelque problèmes : avec une expression aussi générale, on peut obtenir $u < UG_{min} = -10$, ce qui n'est pas possible. On doit donc introduire une distance maximale à partir de laquelle le service obtenu est minimal, $r_{max}$. On ajoute donc la condition $f_{UG}(x) = UG_{min}, \forall x \geq r_{max}$. Ayant deux points de cette fonction linéaire, on peut alors déterminer que $\alpha = \dfrac{UG_{min} - UG}{r_{max} - r_o}$. Ce qui nous donne comme expression finale :
-
-$$ f_{UG}(x)= 
-\begin{cases}
-    UG,                 & \text{si } x \leq r_o(b)\\
-    UG + \alpha * (x - r_o),  & \text{si } r_o \leq x \leq r_{max}\\
-    UG_{min},  & \text{si } x \geq r_{max}
-\end{cases} $$
-
-Ou alors, en une seule expression, 
-
-$$ f_{UG}(x) = \max(UG_{min}, \min(UG, UG + \dfrac{UG_{min} - UG}{r_{max} - r_o} * (x - r_0))) $$
-
-On peut vérifier avec un graphe que ce comportement correspond à ce qui est attendu, avec : $UG = 6$, $UG_{min} = -10$, $r_o = 10$, $r_{max} = 50$\newline
-
-% @TODO: mettre les explications des axes.
-% @TODO: expliquer la version purement linéaire avec la range qui varie
-% @TODO: expliquer que ça sert à rien tout ça
-
-\begin{center}
-    \begin{tikzpicture}
-        \pgfmathdeclarefunction{f}{4}{% UG, UGmin, ro, rmax
-          \pgfmathparse{max(#2, min(#1, #1 + ((#2 - #1) / ( #4 - #3 )) * (x - #3)))}%
-        }
-        \begin{axis}[every axis plot post/.append style={
-          mark=none,domain=0:60,samples=50,smooth},
-          axis x line*=center, % no box around the plot, only x and y axis
-          axis y line*=left, % the * suppresses the arrow tips
-          enlarge x limits=false,
-          enlarge y limits=true]
-          \addplot [blue, thick] {f(6, -10, 10, 50)};
-        \end{axis}
-    \end{tikzpicture}
-\end{center}
-
-Cette interprétation nous semble la plus logique. Cependant, il faut choisir une valeur pour $r_{max}$. Comme ce choix est arbitraire, nous avons choisi $r_{max} = 2 * r_o$.\newline
-
-% @TODO: préciser que c'est pas nécessairement utile, au vu des cas particuliers qu'on s'impose dans l'implémentation
-
-\end{hypothese}
-
-\begin{hypothese}{Répartition des agents dans l'espace}
-L'article ne précise pas la loi de probabilité suivie par les coordonnée des agents. C'est un détail important au vu de l'importance de la topologie dans cette simulation. Nous partons du principe que la distribution souhaitée par les auteurs est une distribution uniforme sur l'ensemble de la sphère. Il existe plusieurs méthode pour obtenir une telle distribution.\newline
-
-La première est de considérer les coordonnées sphériques $r, \varphi, \theta$, avec $r \in [0, 1]$, $\varphi \in [0, \pi[$, $\theta \in ]-\pi, +\pi]$. On définit alors la position d'un nouvel agent comme le tirage aléatoire de trois variables uniformes $r, \varphi, \theta$ sur leurs espaces de définitions respectifs.\newline
-
-La seconde consiste à tirer des points uniformes dans un cube en coordonnées cartésiennes : $(x, y, z) \in [-1, 1]^3$, puis rejeter les points qui sont en dehors de la sphère unitaire ($\|(x, y, z)\| > 1$).\newline
-
-Nous avons choisi la première méthode, car elle est plus efficace tout en donnant des résultats corrects.
-\end{hypothese}
-\vspace{10pt}
 
 \smalltitle{Conception de l'interface NetLogo}
 

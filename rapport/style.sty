@@ -13,6 +13,7 @@
 \usepackage{amssymb} % symboles (\geqslant, entre autres)
 \usepackage{appendix} % pour ajouter un appendice en fin
 \usepackage{tikz} % graphes
+\usepackage{xifthen} % fournit le test \isempty
 \usepackage{pgfplots} % plots de fonctions
 \pgfplotsset{compat=1.15}
 
@@ -64,6 +65,11 @@
 \renewcommand{\forall}{\oldforall~}
 
 \newcommand{\smalltitle}[1]{\noindent\textbf{{\large #1}}\vspace{8pt}}
+
+% Citation d'une page, ligne
+\newcommand{\p}[1]{\texttt{(p~#1.)}}
+\newcommand{\pl}[2]{\texttt{(p~#1.~l~#2.)}}
+\newcommand{\pll}[3]{\texttt{(p~#1.~l~#2~--~#3.)}}
 
 % Titre et page de garde
 \newcommand{\tcol}[1]{\textcolor{red}{#1}}
