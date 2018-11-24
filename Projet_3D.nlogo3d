@@ -118,7 +118,8 @@ to setup
     set listProvider []
     set listConsumer []
     set need_update false
-    set alpha random_uniform alpha_min alpha_max
+    set alpha 1
+    ;set alpha random_uniform alpha_min alpha_max;
   ]
   ask consumers [ ; Crée la liste des voisins disponibles;
     ask consumers with [distance_sphere self myself <= range_vision][
@@ -177,12 +178,12 @@ to go
   set taille_list []
   
   let listRandom [] ; Pour random
-  let listNormal [] ; Pour IT
+  ;let listNormal [] [> Pour IT;
 
-  ; Transaction avec un provider
+  ; ---------------------- Transaction avec un provider ---------------------- ;
   ask consumers with [length listProvider != 0][
     set listRandom lput give_utility one-of listProvider listRandom
-    if random_uniform 0 1 < alpha [
+    if random-float 1 < alpha [
       let idProvider 0
 
       ifelse length listProvider != 1 [ ; Si plusieur provider son dispo
@@ -190,12 +191,14 @@ to go
       ][ set idProvider one-of listProvider ]
 
       makeTransaction idProvider
-      set listNormal lput utility listNormal
+      ;set listNormal lput utility listNormal;
     ]
   ]
   set utilityRandom mean listRandom
-  set utilityIt mean listNormal
+  ;set utilityIt mean listNormal;
+  set utilityIt mean [utility] of consumers with [length listProvider != 0]
 
+  ; ------------------------ Gestion des certificats ------------------------- ;
   if Certificate [
     ask providers with [need_update][
       update_certificate
@@ -204,7 +207,7 @@ to go
     ]
   ]
 
-  ;ajoute la transaction au consumer
+  ; ----- Ajout de la transaction au consumer [problèmes de temps réel] ------ ;
   ask consumers with [need_update][
     set ratingData lput temp_transaction ratingData
     if length ratingData > H [
@@ -215,7 +218,7 @@ to go
   tick
 end
 
-;selectionne le provider
+; ───────────────────────── Selection d'un provider ────────────────────────── ;
 to-report selectProvider
   ; let trustValues []
   let selected 0
@@ -226,11 +229,10 @@ to-report selectProvider
   let best_provider_id (-1)
   let best_trust_value (-2) ; valeur < min(trust_value)
 
-  ;pour chaque provider du client
-  foreach listProvider [
+  foreach listProvider [ ; Pour chaque provider du client
     idProvider ->
-    ;set trustValues lput (list (Trust idProvider) idProvider) trustValues
     let trust_value Trust idProvider
+    ;set trustValues lput (list (Trust idProvider) idProvider) trustValues
     ifelse trust_value != 5 [
       if trust_value > best_trust_value [
         set best_provider_id idProvider
@@ -241,14 +243,6 @@ to-report selectProvider
     ]
   ]
 
-
-  ; let list_trusted filter [ i -> item 0 i != 5] trustValues
-  ;classe décroissant
-  ; set list_trusted sort-by [ [a b] -> item 0 a >= item 0 b] list_trusted
-
-  ; let list_not_trusted filter [ i -> item 0 i = 5] trustValues
-
-  ; if empty? list_trusted [
   if best_trust_value = (-2) [
     report one-of list_not_trusted
   ]
@@ -256,9 +250,8 @@ to-report selectProvider
       report best_provider_id
   ]
 
-  ;choix du provider en fonction de la temperature
+  ; ------------ choix du provider en fonction de la temperature ------------- ;
   let err_profit exp ( best_trust_value * 10 * temperature)
-
   let err_explore exp ( utility_mean * temperature )
 
   let p_expl err_explore / ( err_explore + err_profit )
@@ -267,23 +260,24 @@ to-report selectProvider
   ][
     set selected best_provider_id
   ]
-
   report selected
-
 end
 
+; ────────────────────────── Calcul de la confiance ────────────────────────── ;
+
+; ------------------------ Valeur de confiance finale ------------------------ ;
 to-report Trust [idProvider]
   let wt 0
   let w 0
 
-  if W_I != 0 [
+  if W_I > 0 [
     let tr_list_IT getTrListIT self idProvider
     let T_I trustFunction tr_list_IT "IT"
     set w w + (W_I * item 1 T_I)
     set wt wt + (W_I * item 1 T_I * item 0 T_I)
   ]
 
-  if W_W != 0 [
+  if W_W > 0 [
     let tr_list_WR getTrListWR idProvider
     set taille_list lput length tr_list_WR taille_list
     let T_W trustFunction tr_list_WR "WT"
@@ -291,13 +285,13 @@ to-report Trust [idProvider]
     set wt wt + (W_W * item 1 T_W * item 0 T_W)
   ]
 
-  if W_C != 0 [
+  if W_C > 0 [
     let T_C trustFunction [listCertificate] of turtle idProvider "CT"
     set w w + (W_C * item 1 T_C)
     set wt wt + (W_C * item 1 T_C * item 0 T_C)
   ]
 
-  if W_R != 0 []
+  if W_R > 0 []
 
   let rho_T w / (W_I + W_W + W_C + W_R)
   if rho_T = 0 [ report 5 ]
@@ -306,6 +300,7 @@ to-report Trust [idProvider]
   report T
 end
 
+; ------------------- Valeurs de confiances intermédiaires ------------------- ;
 to-report trustFunction [list_transaction component]
   let up 0
   let down 0
@@ -342,6 +337,7 @@ to-report trustFunction [list_transaction component]
   ]
 end
 
+; ---------------------- Poids d'un rating (fiabilité) ----------------------- ;
 to-report giveWeight [transaction component]
   ifelse component = "RT" [ ; r = ...
   ][ ; r = (b, c, v, t)
@@ -350,29 +346,21 @@ to-report giveWeight [transaction component]
   ]
 end
 
+; ------------ Obtention des ratings pertinents (par composante) ------------- ;
+; It
 to-report getTrListIT [consumer_C id_provider]
-  let listTransaction []
-  ; Pour chaque transaction de l'agent
-  foreach [ratingData] of consumer_C [
-    transaction ->
-    ; Si le provider est le même que celui actuellement
-    if item 0 transaction = id_provider and item 1 transaction = service [
-      ; on ajoute la transaction dans la liste
-      set listTransaction lput transaction listTransaction
-    ]
-  ]
-  report listTransaction
   report filter [
     tr -> item 0 tr = id_provider and item 1 tr = service
   ] ratingData
 end
 
+; Wr
 to-report getTrListWR [id_provider]
   let visited []
   let i 0
 
   let temp recurcive_transaction_W who id_provider visited i
-  if length temp > 10[
+  if length temp > 10 [
     report n-of 10 temp
   ]
   report temp
@@ -387,22 +375,17 @@ to-report recurcive_transaction_W [id_consumer id_provider visited compteur]
     let V best_neighbors id_consumer id_provider
 
     foreach V [ a ->    ;∀ v ∈ V:
-      if member? a visited = false [  ;si v ∉ visited:
+      if not member? a visited [  ;si v ∉ visited:
         set visited fput a visited      ;visited.add(v)
         set temp_listTransaction (getTrListIT (turtle a) id_provider)      ;RI_v = R_I(v, b)
         if empty? temp_listTransaction [
           set temp_listTransaction recurcive_transaction_W a id_provider visited compteur
         ]
-
-        foreach temp_listTransaction [x ->
-          set listTransaction fput x listTransaction  ;merge(R, RI_v)
-        ]
+        set listTransaction sentence listTransaction temp_listTransaction ;merge(R, RI_v)
       ]
     ]
     report listTransaction
-  ][
-    report []
-  ]
+  ][ report [] ]
 end
 
 ; Trie la liste des consumers en fonction de la distance avec le provider
@@ -420,16 +403,15 @@ to-report best_neighbors [idConsumer idProvider]
 
     foreach [listConsumer] of turtle idConsumer [ x ->
       set temp (distance_sphere turtle x turtle idProvider)
-      if temp < best1 [
+      ifelse temp < best1 [
         set best2 best1
         set id_best2 id_best1
         set best1 temp
         set id_best1 x
-      ]
-      if temp < best2 [
-        set best2 temp
-        set id_best2 x
-      ]
+      ][ if temp < best2 [
+          set best2 temp
+          set id_best2 x
+      ]]
     ]
 
     ;si la liste ne contient qu'un element
