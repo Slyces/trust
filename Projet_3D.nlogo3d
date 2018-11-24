@@ -14,6 +14,10 @@ providers-own [
   type_provider
   mu
   sigma
+  listCertificate
+  max_certificate
+
+  need_update
 ]
 
 globals [
@@ -22,6 +26,7 @@ globals [
   utility-RANDOM
 
   range_max
+  historique
 
   W_I
   W_R
@@ -38,7 +43,6 @@ globals [
 ]
 
 
-
 to setup
   clear-all
   reset-ticks
@@ -47,6 +51,7 @@ to setup
   ;set range_max round (range_vision);
   set range_max round (range_vision * (1 + coeff_radius_max))
   set nbVoisin 2
+  set historique 10
 
   ; ---------------- Intervales de performance selon le type ----------------- ;
   set pl_perfect 10
@@ -57,9 +62,9 @@ to setup
 
   ; ------------------------- Poids des composantes -------------------------- ;
   set W_R 2.0
-  set W_C 0.5
   ifelse Interaction [ set W_I 2.0 ][ set W_I 0.0 ]
   ifelse Witness [ set W_W 1.0 ][ set W_W 0.0 ]
+  ifelse Certificate [ set W_C 0.5 ][ set W_C 0.0 ]
 
   ; ------------------------ Initialisation consumer ------------------------- ;
   create-consumers nbConsumer [
@@ -88,6 +93,9 @@ to setup
   ask providers [
     set color blue
     set type_provider 0
+    set listCertificate []
+    set max_certificate [0 0 -20 0]
+    set need_update false
 
     ;donne l'id du provider aux consumers
     ask consumers with [distance_sphere self myself <= range_max] [
@@ -146,10 +154,15 @@ to go
   ]
   set utility-IT mean [utility] of consumers with [length listProvider != 0]
 
-
+  if Certificate [
+    ask providers with [need_update][
+      update_certificate
+      set need_update false
+      set max_certificate [0 0 -20 0]
+    ]
+  ]
   tick
 end
-
 
 ;selectionne le provider
 to-report selectProvider
@@ -227,7 +240,11 @@ to-report Trust [idProvider]
     set wt wt + (W_W * item 1 trust-W * item 0 trust-W)
   ]
 
-  if W_C != 0 []
+  if W_C != 0 [
+    let trust-C trustFunction [listCertificate] of turtle idProvider false
+    set w w + (W_C * item 1 trust-C)
+    set wt wt + (W_C * item 1 trust-C * item 0 trust-C)
+  ]
 
   if W_R != 0 []
 
@@ -297,12 +314,6 @@ to-report giveWeight [transaction bool_roleBased]
   ][]
 end
 
-
-to giveMean
-
-end
-
-
 to-report getListTransaction-IT [consumer_C id_provider]
   let listTransaction []
   ;pour chaque transaction de l'agent
@@ -343,14 +354,12 @@ to-report getListTransaction-W [id_provider]
             set listTransaction fput x listTransaction  ;merge(R, RI_v)
           ]
         ]
-
       ]
     ]
     set V V_next
     set V_next []
     set i i + 1
   ]
-
   report listTransaction
 end
 
@@ -376,7 +385,6 @@ to-report best_neighbors [idConsumer idProvider]
   ]
 end
 
-
 to makeTransaction [id_provider]
   let temp give_utility id_provider
 
@@ -392,8 +400,17 @@ to makeTransaction [id_provider]
 
   ;ajoute la transaction au consumer
   set ratingData lput transaction ratingData
-  if length ratingData > 10 [
+  if length ratingData > historique [
     set ratingData but-first ratingData
+  ]
+  ;donne la note au provider
+  if Certificate [
+    ask turtle id_provider [
+      if note > item 2 max_certificate[
+        set max_certificate transaction
+      ]
+      set need_update true
+    ]
   ]
 end
 
@@ -430,9 +447,16 @@ to-report give_utility [id_provider]
       set utility -10
     ]
   ]
-  if utility < -10 [ report -10 ]
-  if utility > 10 [ report 10 ]
+  if utility < -10 [ set utility -10 ]
+  if utility > 10 [ set utility 10 ]
   report utility
+end
+
+to update_certificate
+  set listCertificate lput max_certificate listCertificate
+  if length listCertificate > historique [
+    set listCertificate but-first listCertificate
+  ]
 end
 
 to-report random_uniform [min-extreme max-extreme]
@@ -520,7 +544,7 @@ nbConsumer
 nbConsumer
 0
 500
-400.0
+500.0
 1
 1
 NIL
@@ -613,7 +637,7 @@ SWITCH
 190
 Witness
 Witness
-0
+1
 1
 -1000
 
@@ -624,6 +648,17 @@ SWITCH
 241
 Interaction
 Interaction
+0
+1
+-1000
+
+SWITCH
+867
+259
+980
+292
+Certificate
+Certificate
 0
 1
 -1000
@@ -970,16 +1005,16 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 3D 6.0.4
+NetLogo 3D 6.0.2
 @#$#@#$#@
 need-to-manually-make-preview-for-this-model
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+  <experiment name="experiment" repetitions="8" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="2"/>
+    <timeLimit steps="20"/>
     <metric>utility-IT</metric>
     <enumeratedValueSet variable="range_circle">
       <value value="15"/>
@@ -988,7 +1023,7 @@ need-to-manually-make-preview-for-this-model
       <value value="false"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="nbConsumer">
-      <value value="500"/>
+      <value value="100"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="nbProvider">
       <value value="100"/>
