@@ -5,10 +5,13 @@ consumers-own [
   listProvider
   listConsumer
   ratingData   ;liste des transactions que le consumer a effectué max 10
+  alpha
   utility
   utility_sum
   utility_mean
   nbTransaction
+  temp_transaction
+  need_update
 ]
 providers-own [
   type_provider
@@ -21,19 +24,22 @@ providers-own [
 
 globals [
   service
-  utility-IT
-  utility-RANDOM
+  utilityIt
+  utilityRandom
   dist_table
+  taille_list
 
   ; ──────────────────────── Constantes de l'article ───────────────────────── ;
   range_max
-  historique
+  alpha_min
+  alpha_max
   H
 
   ; ---------------------------- Calcul de trust ----------------------------- ;
   branching_factor
   referral_length
   gamma
+  lambda
   
   ; ---------------------------- Nombres d'agents ---------------------------- ;
   good_ratio
@@ -53,7 +59,6 @@ globals [
   pl_ok
   pl_bad
   pl_worst
-
   ; -------------------------- Dynamisme des agents -------------------------- ;
   p_ppc
   p_plp
@@ -69,7 +74,6 @@ globals [
   M
 ]
 
-
 to setup
   clear-all
   reset-ticks
@@ -77,11 +81,16 @@ to setup
   set service "quality"
   ;set range_max round (range_vision);
   set range_max round (range_vision * (1 + coeff_radius_max))
-  set historique 10
+  set H 10
+  set alpha_min 0.25
+  set alpha_max 1.0
+  set taille_list []
 
   ; ------------------------- Constantes pour trust -------------------------- ;
   set branching_factor 2
   set referral_length 5
+  set lambda (- 5 / ln 0.5)
+  set gamma (- ln 0.5)
 
   ; ---------------- Intervales de performance selon le type ----------------- ;
   set pl_perfect 10
@@ -99,8 +108,7 @@ to setup
   ; ───────────────────────────── FIN CONSTANTES ───────────────────────────── ;
 
   ; ------------------------ Initialisation consumer ------------------------- ;
-  create-consumers nbConsumer [
-    ; Projection sur la sphère
+  create-consumers nbConsumer [ ; Projection sur la sphère
     tilt-up asin (1.0 - random-float 2)
     jump range_circle
   ]
@@ -109,9 +117,10 @@ to setup
     set ratingData []
     set listProvider []
     set listConsumer []
+    set need_update false
+    set alpha random_uniform alpha_min alpha_max
   ]
-  ask consumers [
-    ; crée la liste des voisins disponibles;
+  ask consumers [ ; Crée la liste des voisins disponibles;
     ask consumers with [distance_sphere self myself <= range_vision][
       set listConsumer lput [who] of myself listConsumer
     ]
@@ -164,30 +173,28 @@ to setup
 end
 
 to go
+  ; ────────────────────────────── Interactions ────────────────────────────── ;
+  set taille_list []
+  
+  let listRandom [] ; Pour random
+  let listNormal [] ; Pour IT
 
-  ;pour random
-  let sumUtility []
+  ; Transaction avec un provider
   ask consumers with [length listProvider != 0][
-    let idProvider one-of listProvider  ;random selection
+    set listRandom lput give_utility one-of listProvider listRandom
+    if random_uniform 0 1 < alpha [
+      let idProvider 0
 
-    set sumUtility lput give_utility idProvider sumUtility
-  ]
-  set utility-RANDOM mean sumUtility
+      ifelse length listProvider != 1 [ ; Si plusieur provider son dispo
+        set idProvider selectProvider
+      ][ set idProvider one-of listProvider ]
 
-  ;transaction avec un provider
-  ask consumers with [length listProvider != 0][
-    let idProvider 0
-
-    ;si plusieur provider son dispo
-    ifelse length listProvider != 1 [
-      set idProvider selectProvider
-    ][
-      set idProvider one-of listProvider
+      makeTransaction idProvider
+      set listNormal lput utility listNormal
     ]
-
-    makeTransaction idProvider
   ]
-  set utility-IT mean [utility] of consumers with [length listProvider != 0]
+  set utilityRandom mean listRandom
+  set utilityIt mean listNormal
 
   if Certificate [
     ask providers with [need_update][
@@ -195,6 +202,15 @@ to go
       set need_update false
       set max_certificate [0 0 -20 0]
     ]
+  ]
+
+  ;ajoute la transaction au consumer
+  ask consumers with [need_update][
+    set ratingData lput temp_transaction ratingData
+    if length ratingData > H [
+      set ratingData but-first ratingData
+    ]
+    set need_update false
   ]
   tick
 end
@@ -261,149 +277,169 @@ to-report Trust [idProvider]
   let w 0
 
   if W_I != 0 [
-    let list_transaction-IT getListTransaction-IT self idProvider
-    let trust-IT trustFunction list_transaction-IT false
-    set w w + (W_I * item 1 trust-IT)
-    set wt wt + (W_I * item 1 trust-IT * item 0 trust-IT)
+    let tr_list_IT getTrListIT self idProvider
+    let T_I trustFunction tr_list_IT "IT"
+    set w w + (W_I * item 1 T_I)
+    set wt wt + (W_I * item 1 T_I * item 0 T_I)
   ]
 
   if W_W != 0 [
-    let list_transaction-W getListTransaction-W idProvider
-    let trust-W trustFunction list_transaction-W false
-    set w w + (W_W * item 1 trust-W)
-    set wt wt + (W_W * item 1 trust-W * item 0 trust-W)
+    let tr_list_WR getTrListWR idProvider
+    set taille_list lput length tr_list_WR taille_list
+    let T_W trustFunction tr_list_WR "WT"
+    set w w + (W_W * item 1 T_W)
+    set wt wt + (W_W * item 1 T_W * item 0 T_W)
   ]
 
   if W_C != 0 [
-    let trust-C trustFunction [listCertificate] of turtle idProvider false
-    set w w + (W_C * item 1 trust-C)
-    set wt wt + (W_C * item 1 trust-C * item 0 trust-C)
+    let T_C trustFunction [listCertificate] of turtle idProvider "CT"
+    set w w + (W_C * item 1 T_C)
+    set wt wt + (W_C * item 1 T_C * item 0 T_C)
   ]
 
   if W_R != 0 []
 
-  let R_T w / (W_I + W_W + W_C + W_R)
-
-  if R_T = 0 [
-    report 5
-  ]
+  let rho_T w / (W_I + W_W + W_C + W_R)
+  if rho_T = 0 [ report 5 ]
 
   let T wt / w
-
   report T
 end
 
-to-report trustFunction [list_transaction bool_roleBased]
+to-report trustFunction [list_transaction component]
   let up 0
   let down 0
   let weight 0
 
-
-  ;TK
-  ifelse length list_transaction = 0 [
+  ifelse length list_transaction = 0 [ ; T_K
     report list 5 0
   ][
     foreach list_transaction [
       transaction ->
-      set weight giveWeight transaction bool_roleBased
+      set weight giveWeight transaction component
       set up (up + weight * item 2 transaction)
       set down (down + weight)
     ]
     let TK up / down
 
-    ;PRK
-    let gamma_k ( - ln 0.5)
-    let PRK (1 - exp ( gamma_k * down))
+    let PRK (1 - exp ( gamma * down)) ; ρ𝑅𝐾
 
-
-    ;PDK
     set up 0
     set down 0
     set weight 0
 
-    foreach list_transaction [
+    foreach list_transaction [ ; ρ𝐷𝐾
       transaction ->
-      set weight giveWeight transaction bool_roleBased
+      set weight giveWeight transaction component
       set down (down + weight)
       set up (down * abs (item 2 transaction - TK))
     ]
-    let PDK (1 - (0.5 * (up / down)))
 
+    let PDK (1 - (0.5 * (up / down)))
     let PK PRK * PDK
 
-    ;renvoi une liste
     report list TK PK
-
   ]
 end
 
-to-report giveWeight [transaction bool_roleBased]
-  ifelse bool_roleBased = false [
+to-report giveWeight [transaction component]
+  ifelse component = "RT" [ ; r = ...
+  ][ ; r = (b, c, v, t)
     let time ticks - item 3 transaction
-    let lambda (- (5 / ln 0.5))
-
     report exp ( - (time / lambda))
-  ][]
+  ]
 end
 
-to-report getListTransaction-IT [consumer_C id_provider]
+to-report getTrListIT [consumer_C id_provider]
   let listTransaction []
-  ;pour chaque transaction de l'agent
+  ; Pour chaque transaction de l'agent
   foreach [ratingData] of consumer_C [
     transaction ->
-    ;si le provider est le même que celui actuellement
-    if item 0 transaction = id_provider and item 1 transaction = service[
-      ;on ajoute la transaction dans la liste
+    ; Si le provider est le même que celui actuellement
+    if item 0 transaction = id_provider and item 1 transaction = service [
+      ; on ajoute la transaction dans la liste
       set listTransaction lput transaction listTransaction
     ]
   ]
   report listTransaction
+  report filter [
+    tr -> item 0 tr = id_provider and item 1 tr = service
+  ] ratingData
 end
 
-to-report getListTransaction-W [id_provider]
+to-report getTrListWR [id_provider]
   let visited []
-  let listTransaction []
-  let temp_listTransaction []
-  let temp_V_next []
-  let V_next []
   let i 0
 
-  let V best_neighbors who id_provider
-  while [i < branching_factor] [
+  let temp recurcive_transaction_W who id_provider visited i
+  if length temp > 10[
+    report n-of 10 temp
+  ]
+  report temp
+end
+
+to-report recurcive_transaction_W [id_consumer id_provider visited compteur]
+  let temp_listTransaction []
+  let listTransaction []
+
+  ifelse compteur < branching_factor [
+    set compteur compteur + 1
+    let V best_neighbors id_consumer id_provider
+
     foreach V [ a ->    ;∀ v ∈ V:
       if member? a visited = false [  ;si v ∉ visited:
         set visited fput a visited      ;visited.add(v)
-        set temp_listTransaction (getListTransaction-IT (turtle a) id_provider)      ;RI_v = R_I(v, b)
-        ifelse empty? temp_listTransaction [
-          set temp_V_next best_neighbors a id_provider  ;merge(V_next, best_neighbors(v, b))
-          foreach temp_V_next [x ->
-            set V_next fput x V_next
-          ]
-        ][
-          foreach temp_listTransaction [x ->
-            set listTransaction fput x listTransaction  ;merge(R, RI_v)
-          ]
+        set temp_listTransaction (getTrListIT (turtle a) id_provider)      ;RI_v = R_I(v, b)
+        if empty? temp_listTransaction [
+          set temp_listTransaction recurcive_transaction_W a id_provider visited compteur
+        ]
+
+        foreach temp_listTransaction [x ->
+          set listTransaction fput x listTransaction  ;merge(R, RI_v)
         ]
       ]
     ]
-    set V V_next
-    set V_next []
-    set i i + 1
+    report listTransaction
+  ][
+    report []
   ]
-  report listTransaction
 end
 
-;trie la liste des consumers en fonction de la distance avec le provider
+; Trie la liste des consumers en fonction de la distance avec le provider
 to-report best_neighbors [idConsumer idProvider]
-  if empty? [listConsumer] of turtle idConsumer [ report [] ]
-  let nearConsumers []
-  set nearConsumers sort-by [
-    [a b] -> 
-      (distance_sphere turtle a turtle idProvider)
-                          >=
-      (distance_sphere turtle b turtle idProvider)
-  ] [listConsumer] of turtle idConsumer
-  report take branching_factor nearConsumers
+  ifelse empty? [listConsumer] of turtle idConsumer [
+    report []
+  ][
+    let temp 0
+    let V []
+    let best []
+    let id_best1 -1
+    let id_best2 -1
+    let best1 1000
+    let best2 1000
+
+    foreach [listConsumer] of turtle idConsumer [ x ->
+      set temp (distance_sphere turtle x turtle idProvider)
+      if temp < best1 [
+        set best2 best1
+        set id_best2 id_best1
+        set best1 temp
+        set id_best1 x
+      ]
+      if temp < best2 [
+        set best2 temp
+        set id_best2 x
+      ]
+    ]
+
+    ;si la liste ne contient qu'un element
+    ifelse id_best2 = -1 [
+      set best lput id_best1 best
+    ][
+      set best list id_best1 id_best2
+    ]
+    report best
+  ]
 end
 
 to makeTransaction [id_provider]
@@ -419,11 +455,9 @@ to makeTransaction [id_provider]
 
   let transaction (list id_provider service note ticks)
 
-  ;ajoute la transaction au consumer
-  set ratingData lput transaction ratingData
-  if length ratingData > historique [
-    set ratingData but-first ratingData
-  ]
+  set temp_transaction transaction
+  set need_update true
+
   ;donne la note au provider
   if Certificate [
     ask turtle id_provider [
@@ -475,7 +509,7 @@ end
 
 to update_certificate
   set listCertificate lput max_certificate listCertificate
-  if length listCertificate > historique [
+  if length listCertificate > H [
     set listCertificate but-first listCertificate
   ]
 end
@@ -574,7 +608,7 @@ nbConsumer
 nbConsumer
 0
 500
-500.0
+404.0
 1
 1
 NIL
@@ -626,8 +660,8 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -2674135 true "" "plot utility-IT"
-"pen-1" 1.0 0 -13345367 true "" "plot utility-RANDOM"
+"default" 1.0 0 -2674135 true "" "plot utilityIt"
+"pen-1" 1.0 0 -13345367 true "" "plot utilityRandom"
 "pen-2" 1.0 0 -7500403 true "" "plot 0"
 
 SLIDER
@@ -667,7 +701,7 @@ SWITCH
 190
 Witness
 Witness
-1
+0
 1
 -1000
 
@@ -692,6 +726,17 @@ Certificate
 0
 1
 -1000
+
+MONITOR
+478
+284
+572
+329
+NIL
+max taille_list
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1045,7 +1090,7 @@ need-to-manually-make-preview-for-this-model
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="20"/>
-    <metric>utility-IT</metric>
+    <metric>utilityIt</metric>
     <enumeratedValueSet variable="range_circle">
       <value value="15"/>
     </enumeratedValueSet>
