@@ -161,42 +161,6 @@ to setup
     set color violet
     set type_provider "intermittent"
   ]
-  ; ───────────────────── distances consumer - providers ───────────────────── ;
-  ;show min-one-of consumers self;
-  ;ask providers [;
-    ;show self (min-one-of consumers);
-  ;];
-  let min_cons_id 0
-  let min_prov_id 0
-  ask min-one-of consumers [ who ] [ set min_cons_id who ]
-  ask min-one-of providers [ who ] [ set min_prov_id who ]
-
-  let cons_id 0
-  let prov_id 0
-  while [cons_id < nbConsumer] [
-    let row []
-    while [prov_id < nbProvider] [
-      set row lput 0 row
-    ]
-    set dist_table lput row dist_table 
-    set cons_id cons_id + 1
-  ]
-  show dist_table
-
-
-  ;set dist_table [];
-  ;while [cons_id < nbConsumer] [;
-    ;set dist_table lput [] dist_table ;
-    ;while [prov_id < nbProvider] [;
-      ;let d distance_sphere turtle (min_cons_id + cons_id) turtle (min_prov_id + prov_id);
-      ;let temp_list item cons_id dist_table;
-      ;set temp_list lput d temp_list;
-      ;[> replace-item cons_id dist_table temp_list<];
-      ;set prov_id prov_id + 1;
-    ;];
-    ;set cons_id cons_id + 1;
-  ;];
-  ;show dist_table;
 end
 
 to go
