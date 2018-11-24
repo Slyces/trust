@@ -16,7 +16,6 @@ providers-own [
   sigma
   listCertificate
   max_certificate
-
   need_update
 ]
 
@@ -24,34 +23,65 @@ globals [
   service
   utility-IT
   utility-RANDOM
+  dist_table
 
+  ; ──────────────────────── Constantes de l'article ───────────────────────── ;
   range_max
   historique
+  H
 
+  ; ---------------------------- Calcul de trust ----------------------------- ;
+  branching_factor
+  referral_length
+  gamma
+  
+  ; ---------------------------- Nombres d'agents ---------------------------- ;
+  good_ratio
+  ordinary_ratio
+  bad_ratio
+  intermitent_ratio
+
+  ; ------------------------- Poids des composantes -------------------------- ;
   W_I
   W_R
   W_C
   W_W
 
+  ; ------------------------- Paliers de performance ------------------------- ;
   pl_perfect
   pl_good
   pl_ok
   pl_bad
   pl_worst
 
-  nbVoisin ;nombre de voisin max pour witness
+  ; -------------------------- Dynamisme des agents -------------------------- ;
+  p_ppc
+  p_plp
+  deltaphi_p
+
+  p_cpc
+  p_plc
+  deltaphi_c
+
+  ; ----------------------- Dynamisme des performances ----------------------- ;
+  p_profile_switch
+  p_mu
+  M
 ]
 
 
 to setup
   clear-all
   reset-ticks
-  ; ------------------------------- constantes ------------------------------- ;
+  ; ───────────────────────── DEFINITION CONSTANTES ────────────────────────── ;
   set service "quality"
   ;set range_max round (range_vision);
   set range_max round (range_vision * (1 + coeff_radius_max))
-  set nbVoisin 2
   set historique 10
+
+  ; ------------------------- Constantes pour trust -------------------------- ;
+  set branching_factor 2
+  set referral_length 5
 
   ; ---------------- Intervales de performance selon le type ----------------- ;
   set pl_perfect 10
@@ -66,6 +96,8 @@ to setup
   ifelse Witness [ set W_W 1.0 ][ set W_W 0.0 ]
   ifelse Certificate [ set W_C 0.5 ][ set W_C 0.0 ]
 
+  ; ───────────────────────────── FIN CONSTANTES ───────────────────────────── ;
+
   ; ------------------------ Initialisation consumer ------------------------- ;
   create-consumers nbConsumer [
     ; Projection sur la sphère
@@ -73,7 +105,7 @@ to setup
     jump range_circle
   ]
   ask consumers [
-    set color red
+    set color blue
     set ratingData []
     set listProvider []
     set listConsumer []
@@ -91,7 +123,6 @@ to setup
     jump range_circle
   ]
   ask providers [
-    set color blue
     set type_provider 0
     set listCertificate []
     set max_certificate [0 0 -20 0]
@@ -106,26 +137,66 @@ to setup
   ; --------------------------- Types de providers --------------------------- ;
   ; Good
   ask n-of round (nbProvider / 10) providers with [type_provider = 0][
+    set color green
     set type_provider "good"
     set mu random_uniform pl_good pl_perfect
     set sigma 1.0
   ]
   ; Odinary
   ask n-of round (nbProvider / 2.5) providers with [type_provider = 0][
+    set color orange
     set type_provider "ordinary"
     set mu random_uniform pl_ok pl_good
     set sigma 1.0
   ]
   ; Bad
   ask n-of round (nbProvider / 20) providers[
+    set color red
     set type_provider "bad"
     set mu random_uniform pl_worst pl_ok
     set sigma 2.0
   ]
   ; Intermitent
   ask n-of round (nbProvider / 2.22) providers with [type_provider = 0][
+    set color violet
     set type_provider "intermittent"
   ]
+  ; ───────────────────── distances consumer - providers ───────────────────── ;
+  ;show min-one-of consumers self;
+  ;ask providers [;
+    ;show self (min-one-of consumers);
+  ;];
+  let min_cons_id 0
+  let min_prov_id 0
+  ask min-one-of consumers [ who ] [ set min_cons_id who ]
+  ask min-one-of providers [ who ] [ set min_prov_id who ]
+
+  let cons_id 0
+  let prov_id 0
+  while [cons_id < nbConsumer] [
+    let row []
+    while [prov_id < nbProvider] [
+      set row lput 0 row
+    ]
+    set dist_table lput row dist_table 
+    set cons_id cons_id + 1
+  ]
+  show dist_table
+
+
+  ;set dist_table [];
+  ;while [cons_id < nbConsumer] [;
+    ;set dist_table lput [] dist_table ;
+    ;while [prov_id < nbProvider] [;
+      ;let d distance_sphere turtle (min_cons_id + cons_id) turtle (min_prov_id + prov_id);
+      ;let temp_list item cons_id dist_table;
+      ;set temp_list lput d temp_list;
+      ;[> replace-item cons_id dist_table temp_list<];
+      ;set prov_id prov_id + 1;
+    ;];
+    ;set cons_id cons_id + 1;
+  ;];
+  ;show dist_table;
 end
 
 to go
@@ -222,7 +293,6 @@ to-report selectProvider
 end
 
 to-report Trust [idProvider]
-
   let wt 0
   let w 0
 
@@ -257,11 +327,9 @@ to-report Trust [idProvider]
   let T wt / w
 
   report T
-
 end
 
 to-report trustFunction [list_transaction bool_roleBased]
-
   let up 0
   let down 0
   let weight 0
@@ -329,8 +397,6 @@ to-report getListTransaction-IT [consumer_C id_provider]
 end
 
 to-report getListTransaction-W [id_provider]
-
-
   let visited []
   let listTransaction []
   let temp_listTransaction []
@@ -339,7 +405,7 @@ to-report getListTransaction-W [id_provider]
   let i 0
 
   let V best_neighbors who id_provider
-  while [i < nbVoisin] [
+  while [i < branching_factor] [
     foreach V [ a ->    ;∀ v ∈ V:
       if member? a visited = false [  ;si v ∉ visited:
         set visited fput a visited      ;visited.add(v)
@@ -365,24 +431,15 @@ end
 
 ;trie la liste des consumers en fonction de la distance avec le provider
 to-report best_neighbors [idConsumer idProvider]
-  ;trie la liste des consumers en fonction de la distance avec le provider
-  ifelse empty? [listConsumer] of turtle idConsumer [
-    report []
-  ][
-    let V []
-    let best []
-    set V sort-by [
-      [a b] -> (distance_sphere turtle a turtle idProvider) >= distance_sphere turtle b turtle idProvider
-    ] [listConsumer] of turtle idConsumer
-
-    ;si la liste ne contient qu'un element
-    ifelse length [listConsumer] of turtle idConsumer < 2 [
-      set best lput item 0 V best
-    ][
-      set best list item 0 V item 1 V
-    ]
-    report best
-  ]
+  if empty? [listConsumer] of turtle idConsumer [ report [] ]
+  let nearConsumers []
+  set nearConsumers sort-by [
+    [a b] -> 
+      (distance_sphere turtle a turtle idProvider)
+                          >=
+      (distance_sphere turtle b turtle idProvider)
+  ] [listConsumer] of turtle idConsumer
+  report take branching_factor nearConsumers
 end
 
 to makeTransaction [id_provider]
@@ -459,9 +516,18 @@ to update_certificate
   ]
 end
 
+to-report take [n items]
+  report sublist items 0 min list n (length items)
+end
+
 to-report random_uniform [min-extreme max-extreme]
   report random-float (max-extreme - min-extreme) + min-extreme
 end
+
+;to-report cached_dist [cons_id prov_id];
+  ;set cons_id (cons_id - min-one-of consumers);
+  ;set prov_id (cons_id - min-one-of providers);
+;end;
 
 to-report distance_sphere [a b]
   let temp ((([xcor] of a * [xcor] of b) + ([ycor] of a * [ycor] of b) + ([zcor] of a * [zcor] of b)) / (range_circle * range_circle))
