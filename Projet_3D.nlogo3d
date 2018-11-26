@@ -40,7 +40,7 @@ globals [
   referral_length
   gamma
   lambda
-  
+
   ; ---------------------------- Nombres d'agents ---------------------------- ;
   good_ratio
   ordinary_ratio
@@ -118,8 +118,8 @@ to setup
     set listProvider []
     set listConsumer []
     set need_update false
-    set alpha 1
-    ;set alpha random_uniform alpha_min alpha_max;
+    ;set alpha 1
+    set alpha random_uniform alpha_min alpha_max;
   ]
   ask consumers [ ; Crée la liste des voisins disponibles;
     ask consumers with [distance_sphere self myself <= range_vision][
@@ -176,9 +176,9 @@ end
 to go
   ; ────────────────────────────── Interactions ────────────────────────────── ;
   set taille_list []
-  
+
   let listRandom [] ; Pour random
-  ;let listNormal [] [> Pour IT;
+  let listNormal [] ;[> Pour IT;
 
   ; ---------------------- Transaction avec un provider ---------------------- ;
   ask consumers with [length listProvider != 0][
@@ -186,17 +186,17 @@ to go
     if random-float 1 < alpha [
       let idProvider 0
 
-      ifelse length listProvider != 1 [ ; Si plusieur provider son dispo
+      ifelse length listProvider != 1 [ ; Si plusieurs provider son dispo
         set idProvider selectProvider
       ][ set idProvider one-of listProvider ]
 
       makeTransaction idProvider
-      ;set listNormal lput utility listNormal;
+      set listNormal lput utility listNormal;
     ]
   ]
   set utilityRandom mean listRandom
-  ;set utilityIt mean listNormal;
-  set utilityIt mean [utility] of consumers with [length listProvider != 0]
+  set utilityIt mean listNormal;
+  ;set utilityIt mean [utility] of consumers with [length listProvider != 0]
 
   ; ------------------------ Gestion des certificats ------------------------- ;
   if Certificate [
@@ -360,9 +360,9 @@ to-report getTrListWR [id_provider]
   let i 0
 
   let temp recurcive_transaction_W who id_provider visited i
-  if length temp > 10 [
-    report n-of 10 temp
-  ]
+  ;if length temp > 10 [
+  ;  report n-of 10 temp
+  ;]
   report temp
 end
 
@@ -490,10 +490,16 @@ to-report give_utility [id_provider]
 end
 
 to update_certificate
-  set listCertificate lput max_certificate listCertificate
-  if length listCertificate > H [
-    set listCertificate but-first listCertificate
+  ifelse length listCertificate < H [
+    set listCertificate lput max_certificate listCertificate
+  ][
+    if item 2 max_certificate > item 2 first listCertificate [
+      set listCertificate remove first listCertificate listCertificate
+      set listCertificate lput max_certificate listCertificate
+    ]
   ]
+  set listCertificate sort-by [
+    [a b] -> item 2 a < item 2 b] listCertificate
 end
 
 to-report take [n items]
@@ -590,7 +596,7 @@ nbConsumer
 nbConsumer
 0
 500
-404.0
+500.0
 1
 1
 NIL
@@ -620,7 +626,7 @@ range_vision
 range_vision
 0
 1000
-590.0
+400.0
 5
 1
 NIL
@@ -670,17 +676,17 @@ coeff_radius_max
 coeff_radius_max
 0
 1
-0.8
+0.4
 0.1
 1
 NIL
 HORIZONTAL
 
 SWITCH
-863
-157
-976
-190
+862
+159
+999
+192
 Witness
 Witness
 0
@@ -699,10 +705,10 @@ Interaction
 -1000
 
 SWITCH
-867
-259
-980
-292
+863
+256
+1000
+289
 Certificate
 Certificate
 0
@@ -1062,34 +1068,74 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 3D 6.0.2
+NetLogo 3D 6.0.4
 @#$#@#$#@
 need-to-manually-make-preview-for-this-model
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="experiment" repetitions="8" runMetricsEveryStep="true">
+  <experiment name="experiment" repetitions="10" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="20"/>
+    <timeLimit steps="200"/>
     <metric>utilityIt</metric>
+    <metric>utilityRandom</metric>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="range_circle">
       <value value="15"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="Interaction">
-      <value value="false"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbConsumer">
-      <value value="100"/>
+      <value value="true"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="nbProvider">
       <value value="100"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="range_vision">
-      <value value="590"/>
+      <value value="445"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="coeff_radius_max">
-      <value value="0.8"/>
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="true"/>
+      <value value="false"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="trouver parametre" repetitions="8" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="200"/>
+    <metric>utilityIt</metric>
+    <metric>utilityRandom</metric>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_circle">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision">
+      <value value="200"/>
+      <value value="300"/>
+      <value value="400"/>
+      <value value="500"/>
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="coeff_radius_max">
+      <value value="0.5"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="Witness">
       <value value="true"/>
