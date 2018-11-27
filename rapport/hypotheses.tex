@@ -42,32 +42,44 @@
 \begin{hypothese}{Valeur accordée à une utilitée}
 \label{hyp:rating}
 
-Dans le modèle, après toute intéraction $i$ entre $a$ et $b$, l'agent $a$ crée un rating $r$ pour chacun des critères $c$ évaluables dans cette interaction. Ce rating prend la forme d'un tuple $r = (a, b, c, i, v)$ où $v \in [-1,1]$ est la valeur que $a$ donne à $b$ pour le critère $c$ lors de l'interaction $i$.\\
+Dans le modèle, après toute interaction $i$ entre $a$ et $b$, l'agent $a$ crée un rating $r$ pour chacun des critères $c$ évaluables dans cette interaction. Ce rating prend la forme d'un tuple $r = (a, b, c, i, v)$ où $v \in [-1,1]$ est la valeur que $a$ donne à $b$ pour le critère $c$ lors de l'interaction $i$.\newline
 Cependant, il n'est nulle part précisé comment l'agent $a$ détermine cette valeur. Nous savons que dans l'implémentation de l'article, $a$ reçoit une utilité \UG $\in [-10,10]$. Nous ferons donc les hypothèses suivantes :
+
 \begin{itemize}
     \item On peut exprimer $v$ comme une fonction de l'\UG\ obtenue par $a$ lors de cette interaction, et cette fonction est propre à $a$ :
-    $$ v = \varphi_a(\text{\UG}) $$
-    \item Au vu du manque d'informations, on fera l'hypothèse que cette fonction normaliser \UG\ dans l'intervalle de $v$, et qu'elle est la même pour chaque agent :
-    $$ \varphi_a(x) = \frac{x}{10}, \forall a $$
+    $$ v = f_a(\text{\UG}) $$
+    \item Au vu du manque d'informations, on fera l'hypothèse que cette fonction normalise \UG\ dans l'intervalle de $v$, et qu'elle est la même pour chaque agent :
+    $$ f_a(x) = \frac{x}{10}, \forall a $$
 \end{itemize}
 
-Cette hypothèse apporte même une autre opportunité d'amélioration au modèle : tous les agents n'ont pas une appréciation linéaire de l'utilité. De même, cette appréciation n'est pas toujours objective. Dans des situations réalistes, certaines personnes notent trop sévèrement, alors que d'autres peuvent être trop indulgentes. Il serait donc intéressant de doter les agents d'utilités non-linéaire dans un premier temps, et peut être par la suite de différencier certains profils d'agents pour intégrer ces disparités dans les notes des différents critères.
+Cette hypothèse est triviale, mais pourrait représenter une opportunité d'améliorer le modèle : tous les agents n'ont pas une appréciation linéaire de l'utilité. De même, cette appréciation n'est pas toujours objective. Dans des situations réalistes, certaines personnes notent trop sévèrement, alors que d'autres peuvent être trop indulgentes. Il serait donc intéressant de doter les agents d'utilités non-linéaire dans un premier temps, et peut être par la suite de différencier certains profils d'agents pour intégrer ces disparités dans les notes des différents critères.\newline
+
+Cette amélioration (assez simple à mettre en place) correspond à des comportements réels observés (la subjectivité) et peut venir se placer en complément / extension des comportements de mensonges, qui sont difficiles à distinguer d'un point de vue extérieur.
+
 \end{hypothese}
 
 \begin{hypothese}{Dégradation du service liée à la distance}
 
-L'article évoque une dégradation linéaire du service lorsque la distance entre les deux agents en interaction, $a$ et $b$, dépasse la portée opérationelle $r_o(b)$ de l'agent fournissant le service.\newline
+L'article évoque une dégradation linéaire du service lorsque la distance entre les deux agents en interaction, $a$ et $b$, dépasse la portée opérationelle $r_o(b)$ de l'agent fournissant le service. Cependant, les détails de cette dégradation linéaire ne sont pas donnés par l'article. Nous allons décrire ci-dessous notre réflexion pour traiter cette hypothèse. \newline
 
-Cependant, les détails de cette dégradation linéaire ne sont pas donnés par l'article. Cette dégradation est donc une fonction de $x = d(a, b)$ la distance entre $a$ et $b$ qui modifie l'utilité $u$ fournie par l'interaction. On peut tout d'abord supposer :
+L'utilité perçue est donc une fonction de $x = d(a, b)$ la distance entre $a$ et $b$. Dans un premier temps, on sait que cette fonction sera constante sur $0 \leq x \leq r_o$.
 
 $$ f_{UG}(x)= 
 \begin{cases}
     UG,                 & \text{si } x \leq r_o(b)\\
     UG + \alpha * (x - r_o),  & \text{sinon}
 \end{cases} $$
-Avec $alpha < 0$ pour obtenir une dégradation.\\
+Avec $alpha < 0$ pour obtenir une dégradation.\newline
 
-Cependant, il reste quelque problèmes : avec une expression aussi générale, on peut obtenir $u < UG_{min} = -10$, ce qui n'est pas possible. On doit donc introduire une distance maximale à partir de laquelle le service obtenu est minimal, $r_{max}$. On ajoute donc la condition $f_{UG}(x) = UG_{min}, \forall x \geq r_{max}$. Ayant deux points de cette fonction linéaire, on peut alors déterminer que $\alpha = \dfrac{UG_{min} - UG}{r_{max} - r_o}$. Ce qui nous donne comme expression finale :
+Cependant, il reste quelque problèmes : avec une expression aussi générale, on peut obtenir $u < UG_{min} = -10$, ce qui n'est pas censé être possible. Ici, deux options s'offrent à nous :
+\begin{itemize}
+    \item Etablir un coefficient constant $\alpha$ de dégradation, peu importe l'utilité émise par l'agent. Ce qui veut dire que la portée maximale $r_{max}$ où $u \leq -10$ varie d'une intéraction à l'autre.
+    \item Etablie une portée maximale fixe, $r_{max}$, et s'arranger pour que chaque agent situé entre $r_o$ et $r_{max}$ reçoive une utilité $u \leq -10$, pour toute interaction.
+\end{itemize}
+
+La première option est intéressante, mais pose le problème du choix du coefficient. Il est arbitraire mais assez peu de choix logiques semblent s'imposer. La seconde option permet de simplement fixer $r_{max}$, potentielement en fonction de $r_o$, et simplifie alors le paramétrage. Nous avons choisi la deuxième, mais nous détaillerons en fin de section l'impact final attendu de cette partie du modèle.
+
+On ajoute donc la condition $f_{UG}(x) = UG_{min}, \forall x \geq r_{max}$. Ayant deux points de cette fonction linéaire, on peut alors déterminer que $\alpha = \dfrac{UG_{min} - UG}{r_{max} - r_o}$. Ce qui nous donne comme expression finale :
 
 $$ f_{UG}(x)= 
 \begin{cases}
@@ -102,19 +114,24 @@ On peut vérifier avec un graphe que ce comportement correspond à ce qui est at
     \end{tikzpicture}
 \end{center}
 
-Cette interprétation nous semble la plus logique. Cependant, il faut choisir une valeur pour $r_{max}$. Comme ce choix est arbitraire, nous avons choisi $r_{max} = 2 * r_o$.\newline
+\noindent Cette méthode revient donc à dire que si $a$ est à mi-distance entre $r_o$ et $r_{max}$, $a$ recevra toujours $\frac{u - 10}{2}$, au lieu de recevoir $u - K$ avec $K$ constant (à distance fixe).\newline
+
+Le choix de $r_{max}$ est arbitraire, nous avons donc introduit un coefficient $y \req 0$ qui nous donne $r_{max} = r_o * (1 + y)$.\newline
+
+% /!\
+\greysep
+
+
+
+Nous faisons l'hypothèse que dans la figure 5 de l'article, une dégradation linéaire de la distance est utilisée. En effet, dans le cas où chaque provider est à 100\% de ses capacités, l'utilité moyenne aléatoire estimée est de 1.5 pour les paramètres de la figure. Cependant, ils affichent une utilité aléatoire à -1, ce qui n'est pas réaliste si ils n'utilisent pas ce mécanisme.
 
 % @TODO: préciser que c'est pas nécessairement utile, au vu des cas particuliers qu'on s'impose dans l'implémentation
 
 \end{hypothese}
 
-\begin{hypothese}{Répartition des agents dans l'espace}
-L'article ne précise pas la loi de probabilité suivie par les coordonnée des agents. C'est un détail important au vu de l'importance de la topologie dans cette simulation. Nous partons du principe que la distribution souhaitée par les auteurs est une distribution uniforme sur l'ensemble de la sphère. Il existe plusieurs méthode pour obtenir une telle distribution.\newline
 
-La première est de considérer les coordonnées sphériques $r, \varphi, \theta$, avec $r \in [0, 1]$, $\varphi \in [0, \pi[$, $\theta \in ]-\pi, +\pi]$. On définit alors la position d'un nouvel agent comme le tirage aléatoire de trois variables uniformes $r, \varphi, \theta$ sur leurs espaces de définitions respectifs.\newline
-
-La seconde consiste à tirer des points uniformes dans un cube en coordonnées cartésiennes : $(x, y, z) \in [-1, 1]^3$, puis rejeter les points qui sont en dehors de la sphère unitaire ($\|(x, y, z)\| > 1$).\newline
-
-Nous avons choisi la première méthode, car elle est plus efficace tout en donnant des résultats corrects.
+\begin{hypothese}
+    
 \end{hypothese}
+
 \vspace{10pt}
