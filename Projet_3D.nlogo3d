@@ -220,8 +220,6 @@ to go
     ]
     set need_update false
   ]
-  show nb_actif
-  show log_with_diffusion
   tick
 end
 
@@ -373,7 +371,7 @@ to-report recurcive_transaction_W [id_consumer id_provider visited compteur]
   let temp_listTransaction []
   let listTransaction []
 
-  ifelse compteur < branching_factor [
+  ifelse compteur < referral_length [
     set compteur compteur + 1
     let V best_neighbors id_consumer id_provider
 
@@ -396,34 +394,20 @@ to-report best_neighbors [idConsumer idProvider]
   ifelse empty? [listConsumer] of turtle idConsumer [
     report []
   ][
-    let temp 0
-    let V []
-    let best []
-    let id_best1 -1
-    let id_best2 -1
-    let best1 1000
-    let best2 1000
 
+    let list_distance []
+    let retour []
     foreach [listConsumer] of turtle idConsumer [ x ->
-      set temp (distance_sphere turtle x turtle idProvider)
-      ifelse temp < best1 [
-        set best2 best1
-        set id_best2 id_best1
-        set best1 temp
-        set id_best1 x
-      ][ if temp < best2 [
-          set best2 temp
-          set id_best2 x
-      ]]
+      set list_distance lput list x (distance_sphere turtle x turtle idProvider) list_distance
     ]
-
-    ;si la liste ne contient qu'un element
-    ifelse id_best2 = -1 [
-      set best lput id_best1 best
-    ][
-      set best list id_best1 id_best2
+    set list_distance sort-by [ [a b] ->
+      item 1 a < item 1 b
+    ]list_distance
+    set list_distance take branching_factor list_distance
+    foreach list_distance [x ->
+      set retour lput item 0 x retour
     ]
-    report best
+    report retour
   ]
 end
 
@@ -629,7 +613,7 @@ range_vision
 range_vision
 0
 1000
-400.0
+395.0
 5
 1
 NIL
@@ -714,7 +698,7 @@ SWITCH
 254
 Certificate
 Certificate
-0
+1
 1
 -1000
 
@@ -757,7 +741,7 @@ W_C
 W_C
 0
 3
-0.5
+0.0
 0.1
 1
 NIL
@@ -1105,44 +1089,12 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 3D 6.0.4
+NetLogo 3D 6.0.2
 @#$#@#$#@
 need-to-manually-make-preview-for-this-model
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="experiment" repetitions="10" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="200"/>
-    <metric>utilityIt</metric>
-    <metric>utilityRandom</metric>
-    <enumeratedValueSet variable="Certificate">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_circle">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Interaction">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbProvider">
-      <value value="100"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbConsumer">
-      <value value="500"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision">
-      <value value="445"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="coeff_radius_max">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Witness">
-      <value value="true"/>
-      <value value="false"/>
-    </enumeratedValueSet>
-  </experiment>
   <experiment name="trouver parametre" repetitions="8" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
@@ -1223,14 +1175,14 @@ need-to-manually-make-preview-for-this-model
       <value value="3"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="run normal" repetitions="8" runMetricsEveryStep="true">
+  <experiment name="experiment" repetitions="15" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="200"/>
-    <metric>nb_actif</metric>
-    <metric>log_with_diffusion</metric>
+    <timeLimit steps="500"/>
+    <metric>utilityIt</metric>
+    <metric>utilityRandom</metric>
     <enumeratedValueSet variable="Certificate">
-      <value value="true"/>
+      <value value="false"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="range_circle">
       <value value="15"/>
@@ -1239,28 +1191,28 @@ need-to-manually-make-preview-for-this-model
       <value value="true"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="W_C">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbConsumer">
-      <value value="500"/>
+      <value value="0"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="nbProvider">
       <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="W_W">
       <value value="1"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="range_vision">
-      <value value="400"/>
+      <value value="395"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="coeff_radius_max">
       <value value="0.4"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="Witness">
-      <value value="true"/>
-    </enumeratedValueSet>
     <enumeratedValueSet variable="W_I">
       <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="true"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
