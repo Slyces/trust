@@ -2,15 +2,15 @@
 import csv, numpy as np
 
 # -------------------------------- parameters -------------------------------- #
-filename = "csv/bestWK.csv"
+filename = "csv/figure9_IT_WR.csv"
 output_file = "output.csv"
-v = 5
-r = 4 * 4 * 4
+v = 15
+r = 2
 c = r * v
-l = 200
+l = 500
 
-nb_var = 1
-var_select = 1
+nb_var = 2
+var_select = 2
 
 # ------------------------------ preprocessing ------------------------------- #
 # On se débarasse de parties pas utiles du fichier
