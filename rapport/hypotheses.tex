@@ -121,17 +121,14 @@ Le choix de $r_{max}$ est arbitraire, nous avons donc introduit un coefficient $
 % /!\
 \greysep
 
+Pour déterminer si oui, ou non, les résultats de l'article utilisent une forme de réduction linéaire de la distance, nous nous somme intéressés à la figure 5. Celle-ci montre les performances d'un agent aléatoire, située autour de $-1$. Lorsqu'on simule un monde où chaque agent ne voit que les providers à sa portée, l'utilitée moyenne d'un agent aléatoire est de $1.5$ (en utilisant les proportions de providers fournies). La figure 5 utilise donc une réduction des performances des providers. Et effectivement, nous arrivons à reproduire un agent aléatoire à $-1$ en faisant varier $r_{max}$.\newline
 
+Ci-dessous, une comparaison des performances avec et sans réduction de la distance (sans réduction : un agent $a$ ne peut contacter un provider $b$ que si $d(a,b) < b.r_o$).
 
-Nous faisons l'hypothèse que dans la figure 5 de l'article, une dégradation linéaire de la distance est utilisée. En effet, dans le cas où chaque provider est à 100\% de ses capacités, l'utilité moyenne aléatoire estimée est de 1.5 pour les paramètres de la figure. Cependant, ils affichent une utilité aléatoire à -1, ce qui n'est pas réaliste si ils n'utilisent pas ce mécanisme.
+%\includegraphics[]{images/}
 
 % @TODO: préciser que c'est pas nécessairement utile, au vu des cas particuliers qu'on s'impose dans l'implémentation
 
-\end{hypothese}
-
-
-\begin{hypothese}
-    
 \end{hypothese}
 
 \vspace{10pt}
