@@ -2,9 +2,9 @@
 import csv, numpy as np
 
 # -------------------------------- parameters -------------------------------- #
-filename = "csv/Figure9_IT.csv"
+filename = "csv/nb_diffusion.csv"
 output_file = "output.csv"
-v = 15
+v = 12
 r = 1
 c = r * v
 l = 500

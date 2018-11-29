@@ -228,6 +228,7 @@ to-report selectProvider
   ; let trustValues []
   let selected 0
   let temperature ln (ticks  + 1)
+  ;let temperature sqrt (ticks  + 1)
 
   ; added
   let list_not_trusted []
@@ -607,7 +608,7 @@ HORIZONTAL
 SLIDER
 19
 303
-240
+227
 336
 range_vision_provider
 range_vision_provider
@@ -676,7 +677,7 @@ SWITCH
 164
 Witness
 Witness
-0
+1
 1
 -1000
 
@@ -726,7 +727,7 @@ W_W
 W_W
 0
 3
-1.0
+0.0
 0.1
 1
 NIL
@@ -750,7 +751,7 @@ HORIZONTAL
 SLIDER
 19
 400
-192
+218
 433
 range_vision_consumer
 range_vision_consumer
@@ -1190,17 +1191,20 @@ need-to-manually-make-preview-for-this-model
       <value value="3"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="experiment" repetitions="15" runMetricsEveryStep="true">
+  <experiment name="experiment" repetitions="12" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="500"/>
-    <metric>utilityIt</metric>
-    <metric>utilityRandom</metric>
+    <metric>nb_actif</metric>
+    <metric>log_with_diffusion</metric>
     <enumeratedValueSet variable="Certificate">
       <value value="false"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="range_circle">
       <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision_provider">
+      <value value="400"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="Interaction">
       <value value="true"/>
@@ -1208,26 +1212,26 @@ need-to-manually-make-preview-for-this-model
     <enumeratedValueSet variable="W_C">
       <value value="0"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="nbProvider">
-      <value value="100"/>
-    </enumeratedValueSet>
     <enumeratedValueSet variable="nbConsumer">
       <value value="500"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="W_W">
-      <value value="1"/>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision">
-      <value value="395"/>
+    <enumeratedValueSet variable="W_W">
+      <value value="0"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="coeff_radius_max">
       <value value="0.4"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="W_I">
-      <value value="2"/>
+    <enumeratedValueSet variable="range_vision_consumer">
+      <value value="400"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="Witness">
-      <value value="true"/>
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
