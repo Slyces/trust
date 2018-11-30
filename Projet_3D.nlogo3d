@@ -29,6 +29,14 @@ globals [
   dist_table
   log_with_diffusion
   nb_actif
+  pW
+  pC
+  pT
+  p_I
+  m_PI
+  m_PC
+  m_PW
+  m_PT
 
   ; ──────────────────────── Constantes de l'article ───────────────────────── ;
   range_max
@@ -83,6 +91,10 @@ to setup
   set H 10
   set alpha_min 0.25
   set alpha_max 1.0
+  set p_I []
+  set pC []
+  set pW []
+  set pT []
 
 
   ; ------------------------- Constantes pour trust -------------------------- ;
@@ -220,6 +232,17 @@ to go
     ]
     set need_update false
   ]
+  ifelse empty? p_I [ set m_PI 0 ][set m_PI mean p_I]
+  ifelse empty? pW [ set m_PW 0 ][set m_PW mean pW]
+  ifelse empty? pC [ set m_PC 0 ][set m_PC mean pC]
+  ifelse empty? pT [ set m_PT 0 ][set m_PT mean pT]
+
+
+  set p_I []
+  set pW []
+  set pC []
+  set pT []
+
   tick
 end
 
@@ -228,6 +251,7 @@ to-report selectProvider
   ; let trustValues []
   let selected 0
   let temperature ln (ticks  + 1)
+  ;let temperature sqrt (ticks  + 1)
 
   ; added
   let list_not_trusted []
@@ -278,6 +302,7 @@ to-report Trust [idProvider]
   if W_I > 0 [
     let tr_list_IT getTrListIT self idProvider
     let T_I trustFunction tr_list_IT "IT"
+    set p_I lput item 1 T_I p_I
     set w w + (W_I * item 1 T_I)
     set wt wt + (W_I * item 1 T_I * item 0 T_I)
   ]
@@ -285,12 +310,14 @@ to-report Trust [idProvider]
   if W_W > 0 [
     let tr_list_WR getTrListWR idProvider
     let T_W trustFunction tr_list_WR "WT"
+    set pW lput item 1 T_W pW
     set w w + (W_W * item 1 T_W)
     set wt wt + (W_W * item 1 T_W * item 0 T_W)
   ]
 
   if W_C > 0 [
     let T_C trustFunction [listCertificate] of turtle idProvider "CT"
+    set pC lput item 1 T_C pC
     set w w + (W_C * item 1 T_C)
     set wt wt + (W_C * item 1 T_C * item 0 T_C)
   ]
@@ -298,6 +325,7 @@ to-report Trust [idProvider]
   if W_R > 0 []
 
   let rho_T w / (W_I + W_W + W_C + W_R)
+  set pT lput rho_T pT
   if rho_T = 0 [ report 5 ]
 
   let T wt / w
@@ -321,7 +349,7 @@ to-report trustFunction [list_transaction component]
     ]
     let TK up / down
 
-    let PRK (1 - exp ( gamma * down)) ; ρ𝑅𝐾
+    let PRK (1 - exp (( - gamma) * down)) ; ρ𝑅𝐾
 
     set up 0
     set down 0
@@ -331,7 +359,7 @@ to-report trustFunction [list_transaction component]
       transaction ->
       set weight giveWeight transaction component
       set down (down + weight)
-      set up (down * abs (item 2 transaction - TK))
+      set up up + (weight * abs (item 2 transaction - TK))
     ]
 
     let PDK (1 - (0.5 * (up / down)))
@@ -607,7 +635,7 @@ HORIZONTAL
 SLIDER
 19
 303
-240
+227
 336
 range_vision_provider
 range_vision_provider
@@ -698,7 +726,7 @@ SWITCH
 254
 Certificate
 Certificate
-1
+0
 1
 -1000
 
@@ -741,7 +769,7 @@ W_C
 W_C
 0
 3
-0.0
+0.5
 0.1
 1
 NIL
@@ -750,7 +778,7 @@ HORIZONTAL
 SLIDER
 19
 400
-192
+218
 433
 range_vision_consumer
 range_vision_consumer
@@ -1104,124 +1132,49 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 3D 6.0.4
+NetLogo 3D 6.0.2
 @#$#@#$#@
 need-to-manually-make-preview-for-this-model
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="trouver parametre" repetitions="8" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="200"/>
-    <metric>utilityIt</metric>
-    <metric>utilityRandom</metric>
-    <enumeratedValueSet variable="Certificate">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_circle">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Interaction">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbProvider">
-      <value value="100"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbConsumer">
-      <value value="500"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision">
-      <value value="400"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="coeff_radius_max">
-      <value value="0.4"/>
-      <value value="0"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Witness">
-      <value value="true"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="experiment" repetitions="5" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="200"/>
-    <metric>utilityIt</metric>
-    <enumeratedValueSet variable="Certificate">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_circle">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Interaction">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_C">
-      <value value="0.5"/>
-      <value value="1"/>
-      <value value="2"/>
-      <value value="3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbProvider">
-      <value value="100"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbConsumer">
-      <value value="500"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_W">
-      <value value="0.5"/>
-      <value value="1"/>
-      <value value="2"/>
-      <value value="3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision">
-      <value value="400"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="coeff_radius_max">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Witness">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_I">
-      <value value="0.5"/>
-      <value value="1"/>
-      <value value="2"/>
-      <value value="3"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="experiment" repetitions="15" runMetricsEveryStep="true">
+  <experiment name="experiment" repetitions="10" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="500"/>
-    <metric>utilityIt</metric>
-    <metric>utilityRandom</metric>
+    <metric>mean p_I</metric>
+    <metric>mean pW</metric>
+    <metric>mean pC</metric>
+    <metric>mean pT</metric>
     <enumeratedValueSet variable="Certificate">
-      <value value="false"/>
+      <value value="true"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="range_circle">
       <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision_provider">
+      <value value="400"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="Interaction">
       <value value="true"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="W_C">
-      <value value="0"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbProvider">
-      <value value="100"/>
+      <value value="0.5"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="nbConsumer">
       <value value="500"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="W_W">
       <value value="1"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision">
-      <value value="395"/>
-    </enumeratedValueSet>
     <enumeratedValueSet variable="coeff_radius_max">
       <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision_consumer">
+      <value value="400"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="W_I">
       <value value="2"/>
