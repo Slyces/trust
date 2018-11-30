@@ -37,6 +37,7 @@ globals [
   m_PC
   m_PW
   m_PT
+  caption
 
   ; ──────────────────────── Constantes de l'article ───────────────────────── ;
   range_max
@@ -190,6 +191,7 @@ to go
   set nb_actif 0
   let listRandom [] ; Pour random
   let listNormal [] ;[> Pour IT;
+  set caption 0
 
   ; ---------------------- Transaction avec un provider ---------------------- ;
   ask consumers with [length listProvider != 0][
@@ -213,7 +215,6 @@ to go
   ]
   set utilityRandom mean listRandom
   set utilityIt mean listNormal;
-  ;set utilityIt mean [utility] of consumers with [length listProvider != 0]
 
   ; ------------------------ Gestion des certificats ------------------------- ;
   if Certificate [
@@ -242,6 +243,11 @@ to go
   set pW []
   set pC []
   set pT []
+
+  if ticks = 199 [
+    set caption listNormal
+    show caption
+  ]
 
   tick
 end
@@ -753,7 +759,7 @@ SLIDER
 W_W
 W_W
 0
-3
+5
 1.0
 0.1
 1
@@ -768,7 +774,7 @@ SLIDER
 W_C
 W_C
 0
-3
+5
 0.5
 0.1
 1
@@ -1141,11 +1147,11 @@ need-to-manually-make-preview-for-this-model
   <experiment name="experiment" repetitions="10" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="500"/>
-    <metric>mean p_I</metric>
-    <metric>mean pW</metric>
-    <metric>mean pC</metric>
-    <metric>mean pT</metric>
+    <timeLimit steps="100"/>
+    <metric>m_PI</metric>
+    <metric>m_PC</metric>
+    <metric>m_PW</metric>
+    <metric>m_PT</metric>
     <enumeratedValueSet variable="Certificate">
       <value value="true"/>
     </enumeratedValueSet>
@@ -1181,6 +1187,169 @@ need-to-manually-make-preview-for-this-model
     </enumeratedValueSet>
     <enumeratedValueSet variable="Witness">
       <value value="true"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="pour 3D" repetitions="8" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="150"/>
+    <metric>utilityIt</metric>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_circle">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision_provider">
+      <value value="400"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="W_C" first="1" step="1" last="5"/>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="W_W" first="1" step="1" last="5"/>
+    <enumeratedValueSet variable="coeff_radius_max">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision_consumer">
+      <value value="400"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="true"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="8" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>utilityIt</metric>
+    <metric>utilityRandom</metric>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_circle">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision_provider">
+      <value value="400"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_C">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_W">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="coeff_radius_max" first="0" step="0.2" last="1"/>
+    <enumeratedValueSet variable="range_vision_consumer">
+      <value value="400"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="diffusion" repetitions="8" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="200"/>
+    <metric>log_with_diffusion</metric>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_circle">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision_provider">
+      <value value="400"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_C">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_W">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="coeff_radius_max">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision_consumer">
+      <value value="400"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="8" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="200"/>
+    <metric>caption</metric>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_circle">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision_provider">
+      <value value="400"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_C">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_W">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="coeff_radius_max">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision_consumer">
+      <value value="400"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
