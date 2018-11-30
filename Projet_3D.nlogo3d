@@ -37,7 +37,6 @@ globals [
   m_PC
   m_PW
   m_PT
-  caption
 
   ; ──────────────────────── Constantes de l'article ───────────────────────── ;
   range_max
@@ -191,7 +190,6 @@ to go
   set nb_actif 0
   let listRandom [] ; Pour random
   let listNormal [] ;[> Pour IT;
-  set caption 0
 
   ; ---------------------- Transaction avec un provider ---------------------- ;
   ask consumers with [length listProvider != 0][
@@ -243,11 +241,6 @@ to go
   set pW []
   set pC []
   set pT []
-
-  if ticks = 199 [
-    set caption listNormal
-    show caption
-  ]
 
   tick
 end
