@@ -156,31 +156,80 @@ to setup
   ]
 
   ; --------------------------- Types de providers --------------------------- ;
-  ; Good
-  ask n-of round (nbProvider / 10) providers with [type_provider = 0][
+
+  if false [
+  ask n-of nb_good providers [
     set color green
-    set type_provider "good"
+   set type_provider "good"
     set mu random_uniform pl_good pl_perfect
     set sigma 1.0
   ]
-  ; Odinary
-  ask n-of round (nbProvider / 2.5) providers with [type_provider = 0][
-    set color orange
-    set type_provider "ordinary"
-    set mu random_uniform pl_ok pl_good
+
+
+  ask n-of round (5) providers with [type_provider = 0][
+         set color orange
+     set type_provider "ordinary"
+     set mu random_uniform pl_ok pl_good
     set sigma 1.0
   ]
-  ; Bad
-  ask n-of round (nbProvider / 20) providers[
-    set color red
-    set type_provider "bad"
-    set mu random_uniform pl_worst pl_ok
-    set sigma 2.0
+  ask n-of round (5) providers with [type_provider = 0][
+     set color violet
+      set type_provider "intermittent"
   ]
-  ; Intermitent
-  ask n-of round (nbProvider / 2.22) providers with [type_provider = 0][
+  ]
+
+  if false [
+    ask n-of round (0) providers with [type_provider = 0][
     set color violet
-    set type_provider "intermittent"
+      set type_provider "intermittent"
+    ]
+    ask n-of round (0) providers with [type_provider = 0][
+       set color red
+      set type_provider "bad"
+      set mu random_uniform pl_worst pl_ok
+      set sigma 2.0
+    ]
+    ask n-of round (0) providers with [type_provider = 0][
+      set color orange
+     set type_provider "ordinary"
+     set mu random_uniform pl_ok pl_good
+    set sigma 1.0
+    ]
+    ask n-of round (100) providers with [type_provider = 0][
+        set color green
+      set type_provider "good"
+      set mu random_uniform pl_good pl_perfect
+      set sigma 1.0
+    ]
+  ]
+
+  if true [
+    ; Good
+    ask n-of round (nbProvider / 10) providers with [type_provider = 0][
+      set color green
+      set type_provider "good"
+      set mu random_uniform pl_good pl_perfect
+      set sigma 1.0
+    ]
+    ; Ordinary
+    ask n-of round (nbProvider / 2.5) providers with [type_provider = 0][
+      set color orange
+      set type_provider "ordinary"
+      set mu random_uniform pl_ok pl_good
+      set sigma 1.0
+    ]
+    ; Bad
+    ask n-of round (nbProvider / 2.22) providers[
+      set color red
+      set type_provider "bad"
+      set mu random_uniform pl_worst pl_ok
+      set sigma 2.0
+    ]
+    ; Intermitent
+    ask n-of round (nbProvider / 20) providers with [type_provider = 0][
+      set color violet
+      set type_provider "intermittent"
+    ]
   ]
 end
 
@@ -640,7 +689,7 @@ range_vision_provider
 range_vision_provider
 0
 1000
-1000.0
+395.0
 5
 1
 NIL
@@ -691,7 +740,7 @@ coeff_radius_max
 0
 1
 0.4
-0.1
+0.01
 1
 NIL
 HORIZONTAL
@@ -784,6 +833,21 @@ range_vision_consumer
 0
 1000
 400.0
+5
+1
+NIL
+HORIZONTAL
+
+SLIDER
+536
+363
+708
+396
+nb_good
+nb_good
+0
+100
+10.0
 5
 1
 NIL
@@ -1433,6 +1497,94 @@ need-to-manually-make-preview-for-this-model
     </enumeratedValueSet>
     <enumeratedValueSet variable="W_I">
       <value value="2"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="8" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>utilityIt</metric>
+    <metric>utilityRandom</metric>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_circle">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision_provider">
+      <value value="400"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_C">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_W">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="coeff_radius_max">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision_consumer">
+      <value value="400"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="true"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="8" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="40"/>
+    <metric>utilityIt</metric>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_circle">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision_provider">
+      <value value="395"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nb_good">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_C">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_W">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="coeff_radius_max">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_vision_consumer">
+      <value value="400"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="true"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>

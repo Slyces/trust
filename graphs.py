@@ -2,12 +2,12 @@
 import csv, numpy as np
 
 # -------------------------------- parameters -------------------------------- #
-filename = "csv/distance_vision_large.csv"
+filename = "csv/Good-100.csv"
 output_file = "output.csv"
 v = 8
-r = 2
+r = 1
 c = r * v
-l = 50
+l = 40
 
 nb_var = 1
 var_select = 1
