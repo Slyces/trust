@@ -2,14 +2,14 @@
 import csv, numpy as np
 
 # -------------------------------- parameters -------------------------------- #
-filename = "csv/test_coeff.csv"
+filename = "csv/distance_vision_large.csv"
 output_file = "output.csv"
 v = 8
-r = 6
+r = 2
 c = r * v
-l = 250
+l = 50
 
-nb_var = 2
+nb_var = 1
 var_select = 1
 
 # ------------------------------ preprocessing ------------------------------- #
