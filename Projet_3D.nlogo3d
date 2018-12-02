@@ -745,7 +745,7 @@ ro_consumer
 ro_consumer
 0
 1000
-600.0
+800.0
 5
 1
 NIL
@@ -1503,7 +1503,7 @@ need-to-manually-make-preview-for-this-model
       <value value="600"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="W_W">
-      <value value="0"/>
+      <value value="1"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="linear_diffusion">
       <value value="0.5"/>
@@ -1558,6 +1558,167 @@ need-to-manually-make-preview-for-this-model
       <value value="0"/>
     </enumeratedValueSet>
     <steppedValueSet variable="linear_diffusion" first="0" step="0.01" last="0.1"/>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="EtudeWR_CR" repetitions="8" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>utilityIt</metric>
+    <enumeratedValueSet variable="ordinary_ratio">
+      <value value="40"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="W_C" first="0" step="0.5" last="2.5"/>
+    <enumeratedValueSet variable="bad_ratio">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="intermitent_ratio">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_consumer">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_max_consumer">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="good_ratio">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_provider">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="W_W" first="0" step="0.5" last="2.5"/>
+    <enumeratedValueSet variable="linear_diffusion">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="EtudeRho" repetitions="20" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>m_PI</metric>
+    <metric>m_PW</metric>
+    <metric>m_PC</metric>
+    <metric>m_PT</metric>
+    <enumeratedValueSet variable="ordinary_ratio">
+      <value value="40"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_C">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="bad_ratio">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="intermitent_ratio">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_consumer">
+      <value value="800"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_max_consumer">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="good_ratio">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_provider">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_W">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="linear_diffusion">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="EtudeRoProvider" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>count turtles</metric>
+    <enumeratedValueSet variable="ordinary_ratio">
+      <value value="40"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_C">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="bad_ratio">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="intermitent_ratio">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_consumer">
+      <value value="800"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_max_consumer">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="good_ratio">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_provider">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_W">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="linear_diffusion">
+      <value value="0.5"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="W_I">
       <value value="2"/>
     </enumeratedValueSet>
