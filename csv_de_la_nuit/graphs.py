@@ -1,28 +1,54 @@
 #!/usr/bin/env python3
 import csv, numpy as np
 
-# -------------------------------- parameters -------------------------------- #
-filename = "csv_de_la_nuit/Q2.1.3-1-IT.csv"
-output_file = "csv_de_la_nuit/output.csv"
-iterations = 10
-variations_params = 1
-c = variations_params * iterations
-ticks = 250
+# ----------------------- parser pour gagner du temps ------------------------ #
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("file")
+parser.add_argument("--varname", dest="var_name", type=str, default="utility")
+parser.add_argument("-v", dest="variation_params", type=int, default=1)
+parser.add_argument("-s", dest="select", type=int, default=1)
+parser.add_argument("-n", dest="nb_var", type=int, default=1)
+parser.add_argument("-i", dest="iterations", type=int, default=10)
+parser.add_argument("-t", dest="ticks", type=int, default=250)
+args = parser.parse_args()
 
-nb_var = 2
-var_select = 1
+# -------------------------------- parameters -------------------------------- #
+filename = args.file
+# output_file = "output.csv"
+output_file = args.var_name + '-' + '.'.join(filename.split('.')[:-1]) + '.csv'
+iterations = args.iterations
+variations_params = args.variation_params
+c = variations_params * iterations
+ticks = args.ticks
+
+nb_var = args.nb_var
+var_select = args.select
+
+# ----------------------- pour windows : décommente ça ----------------------- #
+# Et même pas besoin de commenter au dessus
+
+# filename = "file"
+# output_file = "output.csv"
+# iterations = 10
+# variations_params = 1
+# c = variations_params * iterations
+# ticks = 250
+# 
+# nb_var = 1
+# var_select = 1
 
 # ------------------------------ preprocessing ------------------------------- #
 # On se débarasse de parties pas utiles du fichier
 
 file_str = open(filename).read().split('\n\n')[-1]
 
-open("csv/temp.csv", "w").write('\n'.join(file_str.split('\n')[1:]))
+open("temp.csv", "w").write('\n'.join(file_str.split('\n')[1:]))
 
 # ------------------------------- csv reading -------------------------------- #
 
 columns = [[] for i in range(c)]
-with open("csv/temp.csv") as csv_file:
+with open("temp.csv") as csv_file:
     reader = csv.reader(csv_file, delimiter=',')
     for row in reader:
         row = row[1:]
@@ -48,6 +74,6 @@ for i, row in enumerate(results):
 # print(data[:,1])
 
 with open(output_file, 'w') as out:
-    writer = csv.writer(out, delimiter=';')
+    writer = csv.writer(out, delimiter=',')
     for row in results:
         writer.writerow(['{:.7}'.format(','.join(str(elt).split('.'))) for elt in row])

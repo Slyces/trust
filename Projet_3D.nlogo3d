@@ -37,9 +37,9 @@ globals [
   m_PC
   m_PW
   m_PT
+  range_circle
 
   ; ──────────────────────── Constantes de l'article ───────────────────────── ;
-  range_max
   alpha_min
   alpha_max
   H
@@ -51,10 +51,7 @@ globals [
   lambda
 
   ; ---------------------------- Nombres d'agents ---------------------------- ;
-  good_ratio
-  ordinary_ratio
-  bad_ratio
-  intermitent_ratio
+  ; Voir interface
 
   ; ------------------------- Poids des composantes -------------------------- ;
   W_R
@@ -86,8 +83,8 @@ to setup
   reset-ticks
   ; ───────────────────────── DEFINITION CONSTANTES ────────────────────────── ;
   set service "quality"
-  ;set range_max round (range_vision);
-  set range_max round (range_vision_provider * (1 + coeff_radius_max))
+  set range_circle 15
+  ;set range_max_consumer round (range_vision);
   set H 10
   set alpha_min 0.25
   set alpha_max 1.0
@@ -129,11 +126,10 @@ to setup
     set listProvider []
     set listConsumer []
     set need_update false
-    ;set alpha 1
     set alpha random_uniform alpha_min alpha_max;
   ]
   ask consumers [ ; Crée la liste des voisins disponibles;
-    ask consumers with [distance_sphere self myself <= range_vision_consumer][
+    ask consumers with [distance_sphere self myself <= ro_consumer][
       set listConsumer lput [who] of myself listConsumer
     ]
     set listConsumer remove [who] of self listConsumer
@@ -150,86 +146,37 @@ to setup
     set need_update false
 
     ;donne l'id du provider aux consumers
-    ask consumers with [distance_sphere self myself <= range_max] [
+    ask consumers with [distance_sphere self myself <= range_max_consumer] [
       set listProvider lput [who] of myself listProvider
     ]
   ]
 
   ; --------------------------- Types de providers --------------------------- ;
-
-  if false [
-  ask n-of nb_good providers [
+  ; Good
+  ask n-of round (nbProvider * good_ratio / 100) providers with [type_provider = 0][
     set color green
-   set type_provider "good"
+    set type_provider "good"
     set mu random_uniform pl_good pl_perfect
     set sigma 1.0
   ]
-
-
-  ask n-of round (5) providers with [type_provider = 0][
-         set color orange
-     set type_provider "ordinary"
-     set mu random_uniform pl_ok pl_good
+  ; Ordinary
+  ask n-of round (nbProvider * ordinary_ratio / 100) providers with [type_provider = 0][
+    set color orange
+    set type_provider "ordinary"
+    set mu random_uniform pl_ok pl_good
     set sigma 1.0
   ]
-  ask n-of round (5) providers with [type_provider = 0][
-     set color violet
-      set type_provider "intermittent"
+  ; Bad
+  ask n-of round (nbProvider * bad_ratio / 100) providers[
+    set color red
+    set type_provider "bad"
+    set mu random_uniform pl_worst pl_ok
+    set sigma 2.0
   ]
-  ]
-
-  if false [
-    ask n-of round (0) providers with [type_provider = 0][
+  ; Intermitent
+  ask n-of round (nbProvider * intermitent_ratio / 100) providers with [type_provider = 0][
     set color violet
-      set type_provider "intermittent"
-    ]
-    ask n-of round (0) providers with [type_provider = 0][
-       set color red
-      set type_provider "bad"
-      set mu random_uniform pl_worst pl_ok
-      set sigma 2.0
-    ]
-    ask n-of round (0) providers with [type_provider = 0][
-      set color orange
-     set type_provider "ordinary"
-     set mu random_uniform pl_ok pl_good
-    set sigma 1.0
-    ]
-    ask n-of round (100) providers with [type_provider = 0][
-        set color green
-      set type_provider "good"
-      set mu random_uniform pl_good pl_perfect
-      set sigma 1.0
-    ]
-  ]
-
-  if true [
-    ; Good
-    ask n-of round (nbProvider / 10) providers with [type_provider = 0][
-      set color green
-      set type_provider "good"
-      set mu random_uniform pl_good pl_perfect
-      set sigma 1.0
-    ]
-    ; Ordinary
-    ask n-of round (nbProvider / 2.5) providers with [type_provider = 0][
-      set color orange
-      set type_provider "ordinary"
-      set mu random_uniform pl_ok pl_good
-      set sigma 1.0
-    ]
-    ; Bad
-    ask n-of round (nbProvider / 2.22) providers[
-      set color red
-      set type_provider "bad"
-      set mu random_uniform pl_worst pl_ok
-      set sigma 2.0
-    ]
-    ; Intermitent
-    ask n-of round (nbProvider / 20) providers with [type_provider = 0][
-      set color violet
-      set type_provider "intermittent"
-    ]
+    set type_provider "intermittent"
   ]
 end
 
@@ -253,7 +200,7 @@ to go
       makeTransaction idProvider
 
       set nb_actif nb_actif + 1
-      if distance_sphere self turtle idprovider > range_vision_provider [
+      if distance_sphere self turtle idprovider > ro_consumer [
         set log_with_diffusion log_with_diffusion + 1
       ]
 
@@ -320,11 +267,12 @@ to-report selectProvider
     ]
   ]
 
-  if best_trust_value = (-2) [
-    report one-of list_not_trusted
-  ]
+
   if empty? list_not_trusted [
       report best_provider_id
+  ]
+  if best_trust_value = (-2) [
+    report one-of list_not_trusted
   ]
 
   ; ------------ choix du provider en fonction de la temperature ------------- ;
@@ -522,7 +470,7 @@ to-report give_utility [id_provider]
 
   ;distance entre le consumer et le provider
   ask turtle id_provider [
-    if range_max > range_vision_provider [ set distance_P distance_sphere self myself ]
+    if range_max_consumer > ro_provider [ set distance_P distance_sphere self myself ]
     set mean_P mu
     set type_P type_provider
     set sigma_P sigma
@@ -536,19 +484,14 @@ to-report give_utility [id_provider]
   ]
 
   ; ---------- dégradation linéaire de l'utilité liée à la distance ---------- ;
-  if range_max > range_vision_provider [
+  if range_max_consumer > ro_provider [
     ;dégradation linéaire de la distance
-    let coeff (- 10 - utility) / (range_max - range_vision_provider)
-
-    if distance_P > range_vision_provider [
-      set utility utility + (coeff * (distance_P - range_vision_provider))
-    ]
-    if distance_P >= range_max [
-      set utility -10
+    if distance_P > ro_provider [
+      set utility utility - (linear_diffusion * (distance_P - ro_provider))
     ]
   ]
-  if utility < -10 [ set utility -10 ]
-  if utility > 10 [ set utility 10 ]
+  if utility < -10 [ report -10 ]
+  if utility > 10 [ report 10 ]
   report utility
 end
 
@@ -617,10 +560,10 @@ ticks
 30.0
 
 BUTTON
-36
-49
-103
-82
+42
+42
+109
+75
 NIL
 setup
 NIL
@@ -634,10 +577,10 @@ NIL
 1
 
 BUTTON
-36
-110
-99
-143
+42
+103
+105
+136
 NIL
 go
 T
@@ -651,10 +594,10 @@ NIL
 1
 
 SLIDER
-18
-212
-190
-245
+7
+258
+179
+291
 nbConsumer
 nbConsumer
 0
@@ -666,10 +609,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-19
-260
-191
-293
+5
+300
+177
+333
 nbProvider
 nbProvider
 0
@@ -681,25 +624,25 @@ NIL
 HORIZONTAL
 
 SLIDER
-19
-303
-227
-336
-range_vision_provider
-range_vision_provider
+190
+255
+398
+288
+ro_provider
+ro_provider
 0
 1000
-395.0
+600.0
 5
 1
 NIL
 HORIZONTAL
 
 PLOT
-226
-24
-776
-256
+122
+10
+672
+242
 Utility
 ticks
 Utility
@@ -715,52 +658,22 @@ PENS
 "pen-1" 1.0 0 -13345367 true "" "plot utilityRandom"
 "pen-2" 1.0 0 -7500403 true "" "plot 0"
 
-SLIDER
-19
-351
-191
-384
-range_circle
-range_circle
-1
-50
-15.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-248
-348
-423
-381
-coeff_radius_max
-coeff_radius_max
-0
-1
-0.4
-0.01
-1
-NIL
-HORIZONTAL
-
 SWITCH
-810
-131
-947
-164
+690
+100
+827
+133
 Witness
 Witness
-0
+1
 1
 -1000
 
 SWITCH
-809
-38
-944
-71
+689
+7
+824
+40
 Interaction
 Interaction
 0
@@ -768,10 +681,10 @@ Interaction
 -1000
 
 SWITCH
-811
-221
-948
-254
+691
+190
+828
+223
 Certificate
 Certificate
 0
@@ -779,10 +692,10 @@ Certificate
 -1000
 
 SLIDER
-808
-75
-945
-108
+688
+44
+825
+77
 W_I
 W_I
 0
@@ -794,25 +707,25 @@ NIL
 HORIZONTAL
 
 SLIDER
-811
-168
-948
-201
+691
+137
+828
+170
 W_W
 W_W
 0
 5
-1.0
+0.0
 0.1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-811
-258
-949
-291
+691
+227
+829
+260
 W_C
 W_C
 0
@@ -824,31 +737,106 @@ NIL
 HORIZONTAL
 
 SLIDER
-19
+190
+300
 400
-218
-433
-range_vision_consumer
-range_vision_consumer
+333
+ro_consumer
+ro_consumer
 0
 1000
-400.0
+600.0
 5
 1
 NIL
 HORIZONTAL
 
 SLIDER
-536
-363
-708
-396
-nb_good
-nb_good
+6
+341
+178
+374
+good_ratio
+good_ratio
 0
 100
 10.0
+1
+1
+%
+HORIZONTAL
+
+SLIDER
 5
+380
+178
+413
+ordinary_ratio
+ordinary_ratio
+0
+100
+40.0
+1
+1
+%
+HORIZONTAL
+
+SLIDER
+5
+420
+177
+453
+bad_ratio
+bad_ratio
+0
+100
+45.0
+1
+1
+%
+HORIZONTAL
+
+SLIDER
+5
+460
+180
+493
+intermitent_ratio
+intermitent_ratio
+0
+100
+5.0
+1
+1
+%
+HORIZONTAL
+
+SLIDER
+435
+305
+657
+338
+range_max_consumer
+range_max_consumer
+0
+1000
+600.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+435
+365
+640
+398
+linear_diffusion
+linear_diffusion
+0
+10
+0.5
+0.1
 1
 NIL
 HORIZONTAL
@@ -1195,115 +1183,29 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 3D 6.0.2
+NetLogo 3D 6.0.4
 @#$#@#$#@
 need-to-manually-make-preview-for-this-model
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="experiment" repetitions="10" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="100"/>
-    <metric>m_PI</metric>
-    <metric>m_PC</metric>
-    <metric>m_PW</metric>
-    <metric>m_PT</metric>
-    <enumeratedValueSet variable="Certificate">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_circle">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_provider">
-      <value value="400"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Interaction">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_C">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbConsumer">
-      <value value="500"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbProvider">
-      <value value="100"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_W">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="coeff_radius_max">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_consumer">
-      <value value="400"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_I">
-      <value value="2"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Witness">
-      <value value="true"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="pour 3D" repetitions="8" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="150"/>
-    <metric>utilityIt</metric>
-    <enumeratedValueSet variable="Certificate">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_circle">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_provider">
-      <value value="400"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Interaction">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <steppedValueSet variable="W_C" first="1" step="1" last="5"/>
-    <enumeratedValueSet variable="nbConsumer">
-      <value value="500"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbProvider">
-      <value value="100"/>
-    </enumeratedValueSet>
-    <steppedValueSet variable="W_W" first="1" step="1" last="5"/>
-    <enumeratedValueSet variable="coeff_radius_max">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_consumer">
-      <value value="400"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_I">
-      <value value="2"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Witness">
-      <value value="true"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="experiment" repetitions="8" runMetricsEveryStep="true">
+  <experiment name="IT" repetitions="10" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="250"/>
     <metric>utilityIt</metric>
     <metric>utilityRandom</metric>
-    <enumeratedValueSet variable="Certificate">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_circle">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_provider">
-      <value value="400"/>
+    <enumeratedValueSet variable="ordinary_ratio">
+      <value value="40"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="Interaction">
       <value value="true"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="W_C">
-      <value value="0.5"/>
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="bad_ratio">
+      <value value="45"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="nbConsumer">
       <value value="500"/>
@@ -1311,280 +1213,353 @@ need-to-manually-make-preview-for-this-model
     <enumeratedValueSet variable="nbProvider">
       <value value="100"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="W_W">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <steppedValueSet variable="coeff_radius_max" first="0" step="0.2" last="1"/>
-    <enumeratedValueSet variable="range_vision_consumer">
-      <value value="400"/>
-    </enumeratedValueSet>
     <enumeratedValueSet variable="Witness">
-      <value value="true"/>
+      <value value="false"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="W_I">
-      <value value="2"/>
+    <enumeratedValueSet variable="intermitent_ratio">
+      <value value="5"/>
     </enumeratedValueSet>
-  </experiment>
-  <experiment name="diffusion" repetitions="8" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="200"/>
-    <metric>log_with_diffusion</metric>
     <enumeratedValueSet variable="Certificate">
       <value value="true"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="range_circle">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_provider">
-      <value value="400"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Interaction">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_C">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbConsumer">
-      <value value="500"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbProvider">
-      <value value="100"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_W">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="coeff_radius_max">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_consumer">
-      <value value="400"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Witness">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_I">
-      <value value="2"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="experiment" repetitions="8" runMetricsEveryStep="false">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="200"/>
-    <metric>caption</metric>
-    <enumeratedValueSet variable="Certificate">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_circle">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_provider">
-      <value value="400"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Interaction">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_C">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbConsumer">
-      <value value="500"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbProvider">
-      <value value="100"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_W">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="coeff_radius_max">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_consumer">
-      <value value="400"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Witness">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_I">
-      <value value="2"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="experiment" repetitions="8" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="150"/>
-    <metric>utilityIt</metric>
-    <enumeratedValueSet variable="Certificate">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_circle">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_provider">
-      <value value="100"/>
-      <value value="200"/>
-      <value value="400"/>
+    <enumeratedValueSet variable="ro_consumer">
       <value value="600"/>
-      <value value="800"/>
-      <value value="1000"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="Interaction">
-      <value value="true"/>
+    <enumeratedValueSet variable="range_max_consumer">
+      <value value="600"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="W_C">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbConsumer">
-      <value value="500"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbProvider">
-      <value value="100"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_W">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="coeff_radius_max">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_consumer">
-      <value value="400"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Witness">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_I">
-      <value value="2"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="experiment" repetitions="8" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="50"/>
-    <metric>utilityIt</metric>
-    <enumeratedValueSet variable="Certificate">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_circle">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_provider">
-      <value value="800"/>
-      <value value="1000"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Interaction">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_C">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbConsumer">
-      <value value="500"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbProvider">
-      <value value="100"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_W">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="coeff_radius_max">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_consumer">
-      <value value="400"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Witness">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_I">
-      <value value="2"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="experiment" repetitions="8" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="250"/>
-    <metric>utilityIt</metric>
-    <metric>utilityRandom</metric>
-    <enumeratedValueSet variable="Certificate">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_circle">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_provider">
-      <value value="400"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Interaction">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_C">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbProvider">
-      <value value="100"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbConsumer">
-      <value value="500"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_W">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="coeff_radius_max">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_consumer">
-      <value value="400"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="W_I">
-      <value value="2"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Witness">
-      <value value="true"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="experiment" repetitions="8" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="40"/>
-    <metric>utilityIt</metric>
-    <enumeratedValueSet variable="Certificate">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_circle">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_provider">
-      <value value="395"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Interaction">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nb_good">
+    <enumeratedValueSet variable="good_ratio">
       <value value="10"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="W_C">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbProvider">
-      <value value="100"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="nbConsumer">
-      <value value="500"/>
+    <enumeratedValueSet variable="ro_provider">
+      <value value="600"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="W_W">
-      <value value="1"/>
+      <value value="0"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="coeff_radius_max">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="range_vision_consumer">
-      <value value="400"/>
+    <enumeratedValueSet variable="linear_diffusion">
+      <value value="0.5"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="W_I">
       <value value="2"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="Witness">
+  </experiment>
+  <experiment name="IT_WR" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>utilityIt</metric>
+    <enumeratedValueSet variable="ordinary_ratio">
+      <value value="40"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
       <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_C">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="bad_ratio">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="intermitent_ratio">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_consumer">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_max_consumer">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="good_ratio">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_provider">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_W">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="linear_diffusion">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="IT_CR" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>utilityIt</metric>
+    <enumeratedValueSet variable="ordinary_ratio">
+      <value value="40"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_C">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="bad_ratio">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="intermitent_ratio">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_consumer">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_max_consumer">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="good_ratio">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_provider">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_W">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="linear_diffusion">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="Test-IT_WR" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>utilityIt</metric>
+    <enumeratedValueSet variable="ordinary_ratio">
+      <value value="40"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_C">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="bad_ratio">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="intermitent_ratio">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_consumer">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_max_consumer">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="good_ratio">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_provider">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_W">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="linear_diffusion">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="FIRE" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>utilityIt</metric>
+    <enumeratedValueSet variable="ordinary_ratio">
+      <value value="40"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_C">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="bad_ratio">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="intermitent_ratio">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_consumer">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="range_max_consumer">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="good_ratio">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_provider">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_W">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="linear_diffusion">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="EtudeRoConsumer" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>utilityIt</metric>
+    <enumeratedValueSet variable="ordinary_ratio">
+      <value value="40"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_C">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="bad_ratio">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="intermitent_ratio">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="ro_consumer" first="50" step="50" last="800"/>
+    <enumeratedValueSet variable="range_max_consumer">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="good_ratio">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_provider">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_W">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="linear_diffusion">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="EtudeLinearDiffusion" repetitions="8" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>utilityIt</metric>
+    <enumeratedValueSet variable="ordinary_ratio">
+      <value value="40"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Interaction">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_C">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="bad_ratio">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbConsumer">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="nbProvider">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Witness">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="intermitent_ratio">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Certificate">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_consumer">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="range_max_consumer" first="600" step="50" last="900"/>
+    <enumeratedValueSet variable="good_ratio">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="ro_provider">
+      <value value="600"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="W_W">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="linear_diffusion" first="0" step="0.01" last="0.1"/>
+    <enumeratedValueSet variable="W_I">
+      <value value="2"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
@@ -1601,5 +1576,5 @@ true
 Line -7500403 true 150 150 90 180
 Line -7500403 true 150 150 210 180
 @#$#@#$#@
-0
+1
 @#$#@#$#@
